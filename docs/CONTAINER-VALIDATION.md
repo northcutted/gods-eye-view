@@ -1,11 +1,13 @@
 # 🧪 What we tested
 
-**The local container builds and runs. The release checks are not all green.**
-Application tests and runtime safety checks passed, but four library findings
-still block release. No published image or GitHub-signed build has been verified.
+**The local container builds and runs. Hosted release verification is still pending.**
+Application tests and runtime safety checks passed. The original scan found four
+unfixed High/Critical library issues. Under the current fixable-only policy,
+those are reported without blocking; no published image or GitHub-signed build
+has been verified.
 
 This is the validation record prepared on 2026-09-11 (America/Chicago), with
-the follow-up VEX assessment on 2026-09-12 UTC. It records what was tested at
+the follow-up VEX assessment and gate-policy checks on 2026-09-12 UTC. It records what was tested at
 that time, not a promise about later images. For setup and everyday commands,
 start with [Run the globe with Docker](CONTAINERS.md).
 
@@ -44,7 +46,7 @@ asks it to stop.
 
 </details>
 
-## What's holding up the release?
+## What did the vulnerability scan find?
 
 The image includes libraries from Debian, the Linux distribution underneath
 Node. Grype, our image vulnerability scanner, found the following issues in
@@ -52,7 +54,7 @@ both architecture builds. A **release gate** is simply an automated check that
 must pass before a build is promoted to a release tag.
 
 Grype 0.118.0 scanned both final platform images against its then-current database.
-The High/Critical threshold failed with the following findings:
+The original all-findings High/Critical threshold failed with these findings:
 
 | Advisory                                                                     | Scanner severity | Installed package                    | Reported fix state            |
 | ---------------------------------------------------------------------------- | ---------------- | ------------------------------------ | ----------------------------- |
@@ -75,10 +77,34 @@ app does not use the affected operations. It proposes four narrow exceptions,
 with the image identities, native inspection, and debugger tests recorded.
 It also keeps Debian's zlib package separate from the copy inside Node.
 
-**Those proposals are not approved, signed, or enabled.** The release remains
-blocked pending review and release-specific validation. A signed build record
-tells you where an image came from; it does not fix a library or make a
-vulnerability finding disappear.
+**Those VEX proposals are not approved, signed, or enabled.** Separately, the
+release policy now blocks only High/Critical findings with a reported fix.
+`wont-fix`, `not-fixed`, and unknown fix states remain in the JSON report and
+are counted in the Actions summary, without blocking. This accepts the risk of
+unfixed issues; it does not certify them as harmless or alter this historical
+assessment. A signed build record does not fix a library either.
+
+## Did we test the fixable-only policy?
+
+Yes. We rescanned the same AMD64 and ARM64 images with Grype 0.118.0, using
+`--only-fixed --fail-on high` and the workflow's `.github/grype.yaml` config.
+These checks reused the database built on 2026-09-11 at 06:29:40 UTC so we could
+compare policy behavior without changing the underlying vulnerability data.
+
+- Both images passed. Each report retained all 20 original findings in
+  `ignoredMatches`, including the four High/Critical findings above.
+- Removing `--only-fixed` from the ARM64 scan restored the expected failure
+  (exit code 2). The issues did not disappear; only their release handling changed.
+- Scanning the test package reference `pkg:npm/lodash@4.17.20` with the new policy
+  still failed (exit code 2), with two High findings that had fixed versions.
+  This was a scanner control, not a dependency added to the app.
+- A missing scan input failed (exit code 1). The workflow's summary step correctly
+  counted the real reports and rejected missing, empty, malformed, and wrong-shape
+  reports instead of showing a clean result.
+
+The explicit YAML config also replaces `/dev/null`, which this Grype version
+rejects as an unsupported config file. No package or advisory ignore rules were
+added. The hosted Actions run is still pending.
 
 ## Did we check the Compose examples?
 

@@ -1,0 +1,4 @@
+# Use this explicit config so CI does not load an unrelated local Grype config.
+# Fix-availability filtering and the severity threshold are set in container.yml.
+# No package, advisory, or VEX exceptions are enabled here.
+ignore: []

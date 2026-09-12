@@ -22,10 +22,12 @@ in these exact application images**. In VEX terms, that is `not_affected`, with
 the reason `vulnerable_code_not_in_execute_path`: the app does not use the
 operations needed to trigger the bug.
 
-**No exceptions are enabled.** The release checks still fail on all four.
-The libraries are still present and unpatched. These proposals need review
-before they can change a release decision; they do not apply automatically to
-a different image, an updated app, or a general-purpose Node container.
+**No VEX exceptions are enabled.** The release policy now separately accepts
+findings without an available fix: Grype's `wont-fix`, `not-fixed`, and unknown
+states are report-only. That policy does not turn these proposals into approved
+`not_affected` statements. The libraries remain present and unpatched, and the
+evidence does not automatically apply to a different image, an updated app,
+or a general-purpose Node container.
 
 | Finding        | What the bug involves                                            | Why an app-specific exception is proposed                                                  | Confidence                         |
 | -------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------- |
@@ -237,12 +239,12 @@ keep an exception specific, reviewable, and temporary.
    dependency inventory, build records, and assessment.
 5. **Review within 30 days.** Release policy must enforce that window; OpenVEX
    has no built-in expiry field that makes Grype do it automatically. Missing,
-   stale, mismatched, or untrusted evidence must leave the release blocked.
+   stale, mismatched, or untrusted VEX must not bypass a fixable release blocker.
    Prefer updating to a fixed package over repeatedly renewing an exception.
 6. **Test the exception's limits.** A wrong image, architecture, package,
    version, CVE, signer, or expired review must not match. Another High finding
-   must still block release. Do not turn on `only-fixed`: that would hide
-   unfixed issues rather than assess whether they affect this app.
+   with an available fix must still block release. The separate `only-fixed`
+   policy accepts unfixed risk; it does not establish VEX non-applicability.
 
 These conditions are a proposed activation policy, **not implemented gate
 behavior**. The [OpenVEX specification](https://github.com/openvex/spec/blob/main/OPENVEX-SPEC.md)

@@ -159,19 +159,42 @@ jobs:
           set -euo pipefail
           podman pull "$IMAGE@$DIGEST"
           CONTAINER_ENGINE=podman node scripts/test-container.mjs "$IMAGE@$DIGEST"
-      - name: Gate high and critical image vulnerabilities
+      - name: Gate fixable high and critical image vulnerabilities
         id: scan
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
           image: registry:${{ needs.prepare.outputs.image }}@${{ steps.build.outputs.digest }}
           grype-version: v0.118.0
           severity-cutoff: high
-          only-fixed: false
+          # Report wont-fix, not-fixed, and unknown states without blocking.
+          # JSON retains these findings in ignoredMatches; this is not VEX.
+          only-fixed: true
           fail-build: true
           output-format: json
           output-file: /tmp/gev-vulnerabilities.json
           cache-db: false
-          config: /dev/null
+          config: .github/grype.yaml
+      - name: Report fixable and unfixed vulnerability counts
+        if: always() && steps.scan.outcome != 'skipped'
+        run: |
+          set -euo pipefail
+          # A missing/broken report is a scan failure, not a clean image.
+          test -s /tmp/gev-vulnerabilities.json
+          jq -r '
+            if (.matches | type) != "array" or ((.ignoredMatches // []) | type) != "array"
+            then error("Invalid Grype report: expected match arrays") else . end
+            | (.matches + (.ignoredMatches // []))
+            | map(select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")) as $findings
+            | "### Image vulnerability policy",
+              "",
+              "Only High/Critical findings with an available fix block release. All findings remain in the JSON artifact.",
+              "",
+              "| Fix state | High/Critical findings | Handling |",
+              "| --- | --- | --- |",
+              (["fixed", "wont-fix", "not-fixed", "unknown"][] as $state
+                | ($findings | map(select((.vulnerability.fix.state // "unknown") == $state)) | length) as $count
+                | "| \($state) | \($count) | \(if $state == "fixed" then "Block" else "Report only" end) |")
+          ' /tmp/gev-vulnerabilities.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

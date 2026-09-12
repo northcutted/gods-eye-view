@@ -26,9 +26,10 @@ later builds can reuse local build layers. The app starts with its keyless
 providers, just like the terminal setup.
 
 **Release status:** this guide currently starts by building your checkout.
-The first hosted image release has not been verified yet, and four library
-findings still block the release checks. Local builds are available for
-testing; they are not signed releases. See [what we tested](CONTAINER-VALIDATION.md).
+The first hosted image release has not been verified yet. Release checks block
+High/Critical findings when a fix is available; unfixed findings are reported
+without blocking. Local builds are available for testing, not as signed
+releases. See [what we tested](CONTAINER-VALIDATION.md).
 
 ### The commands you'll use most
 
@@ -303,9 +304,22 @@ Weekly main builds exercise the pipeline but do not update pinned dependencies.
 Temporary `build-RUN-ATTEMPT-ARCH` staging tags can remain after a failed check:
 they are not approved releases.
 
-High/Critical scanner findings block promotion even when no fix is available.
-The current [VEX proposals](CONTAINER-VEX.md) have not changed that behavior.
-A valid build signature does not remove a vulnerability or provide app login.
+High/Critical scanner findings block promotion **when Grype reports an available
+fix**. We use `only-fixed: true`: `wont-fix`, `not-fixed`, and unknown fix states
+are report-only. Here, Grype's `fixed` state means a fixed package version is
+available, not that the version in our image is already safe.
+
+The Actions summary shows High/Critical counts by fix state. Its JSON artifact
+keeps actionable findings in `matches` and report-only findings in
+`ignoredMatches`, including why they were filtered. Lower-severity findings are
+also retained. Scanner errors still fail the build. See
+[Grype's fix-availability filtering](https://oss.anchore.com/docs/guides/vulnerability/filter-results/).
+
+This is **risk acceptance based on fix availability**, not a claim that an
+unfixed issue is harmless. It also is not an approved VEX exception: the
+[VEX assessment](CONTAINER-VEX.md) remains separate evidence. Each new scan
+checks availability again, so a new fix can turn a report-only finding into a
+blocker. A valid build signature does not fix vulnerabilities or provide login.
 
 </details>
 
