@@ -24,7 +24,7 @@ Photorealistic 3D globe. Live aircraft, ships, satellites, earthquakes, traffic,
 
 *“pretty cool”* — [Brendan Eich](https://x.com/BrendanEich/status/2094592096401490266), creator of JavaScript and co-founder of Mozilla and Brave · Featured on **[Pinokio](https://pinokio.co/posts/01m1m4p9xxm3qw7dnnpj2wr93g)**
 
-⚡ **Start without API keys.** Install with [Pinokio](https://pinokio.co/apps/github-com-bilawalsidhu-gods-eye-view) or run locally from the terminal. Add optional keys inside the app. **[→ Quick Start](#-quick-start)**
+⚡ **Start without API keys.** Install with [Pinokio](https://pinokio.co/apps/github-com-bilawalsidhu-gods-eye-view), run locally from the terminal, or use [Docker](docs/CONTAINERS.md). Add optional keys when you're ready. **[→ Quick Start](#-quick-start)**
 
 </div>
 
@@ -89,7 +89,8 @@ cameras, radio, and launches are available without keys.
 For photorealistic 3D, add a **Cesium ion token** for eligible personal,
 non-commercial use, or a **Google Maps key** for the direct, metered route and
 in-app place search. Provider terms and quotas apply. Add keys through the
-app's **POWER UP** panel; [Keys & Costs](#-api-keys) explains the options.
+app's **POWER UP** panel on Pinokio/terminal installs, or through `.env` for
+Docker; [Keys & Costs](#-api-keys) explains the options.
 
 ### Path 1 — One click, no terminal
 
@@ -133,7 +134,28 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 **macOS shortcut:** `./scripts/dev-fresh.sh` clears the Vite cache and pulls any
 configured keys straight from the Keychain. It starts keyless too.
 
-### Then power it up — in the app, not in a file
+### Path 3 — Docker / existing container stack
+
+No local Node or npm install needed. From a checkout of this repository, with
+Docker and **Compose 2.24 or newer**:
+
+```bash
+docker compose up --build -d
+```
+
+Open **http://localhost:8080**. It starts without API keys and keeps its cache
+across container replacement. Direct access stays on the Docker host by default.
+
+**Keys work differently here:** put optional keys in a private `.env` beside
+`compose.yaml`, then run `docker compose up -d --force-recreate app`.
+The container does not offer the in-app key-saving panel. Do not mount the
+checkout over `/app` or delete volumes to update it.
+
+See [Run the globe with Docker](docs/CONTAINERS.md) for published-image setup,
+existing stacks, reverse proxies, NAS notes, and troubleshooting. The commented
+[Compose file](compose.yaml) walks through each setting.
+
+### Then power it up — in the app for Pinokio and terminal installs
 
 Keys are upgrades, not prerequisites. When you want one, click the **POWER UP**
 chip in the bottom-right corner: Provider Settings lists every supported key,

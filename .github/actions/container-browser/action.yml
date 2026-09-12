@@ -1,0 +1,41 @@
+name: Test container in a browser
+description: Check keyless first-run startup using a built image and runner-side Chrome
+inputs:
+  image:
+    description: Local image or already-pulled registry digest to test
+    required: true
+  artifact-name:
+    description: Name for the screenshots and diagnostic report
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js for the browser test
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 26.8.2
+        package-manager-cache: false
+    - name: Install locked browser-test dependencies on the runner
+      shell: bash
+      run: npm ci --ignore-scripts --no-audit --no-fund
+    - name: Download the Chrome version selected by the locked Puppeteer package
+      shell: bash
+      env:
+        PUPPETEER_CACHE_DIR: ${{ runner.temp }}/gev-puppeteer
+      run: node node_modules/puppeteer/lib/puppeteer/node/cli.js browsers install chrome
+    - name: Check keyless startup, first-run controls, and globe rendering
+      shell: bash
+      env:
+        CONTAINER_ENGINE: podman
+        PUPPETEER_CACHE_DIR: ${{ runner.temp }}/gev-puppeteer
+        GEV_BROWSER_ARTIFACTS_DIR: ${{ runner.temp }}/gev-container-browser
+        TEST_IMAGE: ${{ inputs.image }}
+      run: node scripts/test-container-browser.mjs "$TEST_IMAGE"
+    - name: Upload browser screenshots and diagnostic report
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ runner.temp }}/gev-container-browser/
+        retention-days: 14
+        if-no-files-found: warn

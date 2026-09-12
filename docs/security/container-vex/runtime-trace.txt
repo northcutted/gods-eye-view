@@ -1,0 +1,100 @@
+Breakpoint 1 at 0x810420
+Breakpoint 2 at 0x8121d0
+Breakpoint 3 at 0x811660
+Function "__isoc99_fscanf" not defined.
+Breakpoint 4 (__isoc99_fscanf) pending.
+Function "ungetwc" not defined.
+Breakpoint 5 (ungetwc) pending.
+Function "_IO_wdefault_pbackfail" not defined.
+Breakpoint 6 (_IO_wdefault_pbackfail) pending.
+Function "ns_sprintrr" not defined.
+Breakpoint 7 (ns_sprintrr) pending.
+Breakpoint 8 (ns_sprintrrf) pending.
+Function "ns_sprintrrf" not defined.
+Function "__ns_sprintrr" not defined.
+Breakpoint 9 (__ns_sprintrr) pending.
+Function "__ns_sprintrrf" not defined.
+Breakpoint 10 (__ns_sprintrrf) pending.
+Function "fp_nquery" not defined.
+Breakpoint 11 (fp_nquery) pending.
+Function "__fp_nquery" not defined.
+Breakpoint 12 (__fp_nquery) pending.
+Breakpoint 13 at 0x196c910
+Breakpoint 14 at 0x196d2bc
+Breakpoint 15 at 0x196cedc
+Breakpoint 16 at 0x196d250
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/aarch64-linux-gnu/libthread_db.so.1".
+SINK sscanf FORMAT '%u.%u.%u'
+[New Thread 0xffff842aeec0 (LWP 2560)]
+[New Thread 0xffff83a9eec0 (LWP 2561)]
+[New Thread 0xffff8328eec0 (LWP 2562)]
+[New Thread 0xffff82a7eec0 (LWP 2563)]
+[New Thread 0xffff8226eec0 (LWP 2564)]
+SINK sscanf FORMAT '%lu'
+SINK sscanf FORMAT '%lu'
+SINK sscanf FORMAT '%lu kB'
+[New Thread 0xffff8198bec0 (LWP 2565)]
+[New Thread 0xffff8195bec0 (LWP 2566)]
+[Thread 0xffff8195bec0 (LWP 2566) exited]
+[New Thread 0xffff8114bec0 (LWP 2567)]
+[New Thread 0xffff8093bec0 (LWP 2568)]
+[New Thread 0xffff43ffeec0 (LWP 2569)]
+[New Thread 0xffff437eeec0 (LWP 2570)]
+VERSIONS {"node":"26.8.2","acorn":"8.18.0","ada":"4.0.0","amaro":"1.1.11","ares":"1.34.8","brotli":"1.2.0","cldr":"48.0","icu":"78.3","libffi":"3.8.0","lief":"0.17.0","llhttp":"9.4.3","merve":"1.2.2","modules":"147","napi":"10","nbytes":"0.1.4","ncrypto":"0.0.1","nghttp2":"1.70.0","nghttp3":"","ngtcp2":"","openssl":"3.5.8","simdjson":"4.6.9","simdutf":"7.7.0","sqlite":"3.53.4","tz":"2026c","undici":"8.10.2","unicode":"17.0","uv":"1.52.1","uvwasi":"0.0.23","v8":"14.6.202.34-node.28","zlib":"1.3.2.1-motley-5eb4d7e","zstd":"1.5.7"}
+NATIVE_CONFIG {"node_shared":false,"shlib_suffix":"so.147","node_shared_zlib":false,"node_shared_http_parser":false,"node_shared_libuv":false,"node_shared_ada":false,"node_shared_simdjson":false,"node_shared_simdutf":false,"node_shared_brotli":false,"node_shared_cares":false,"node_shared_gtest":false,"node_shared_hdr_histogram":false,"node_shared_merve":false,"node_shared_nbytes":false,"node_shared_nghttp2":false,"node_shared_nghttp3":false,"node_shared_ngtcp2":false,"node_shared_lief":false,"node_shared_sqlite":false,"node_use_ffi":true,"node_shared_ffi":false,"node_shared_temporal_capi":false,"node_shared_uvwasi":false,"node_shared_zstd":false,"v8_enable_pointer_compression_shared_cage":0,"node_shared_openssl":false}
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK sscanf FORMAT '%lf'
+SINK sscanf FORMAT '%lf %lf %lf'
+OS 4 373195.53 [ 0.46, 0.44, 0.37 ]
+DNS_LOOKUP { address: '::1', family: 6 }
+DNS_RESOLVE [ '127.0.0.1' ]
+[HTTP] Listening on 127.0.0.1:18080
+HTTP /healthz 200
+HTTP / 200
+HTTP /runtime-config.js 200
+HTTP /api/setup/status 404
+HTTP /api/unknown?x=%252048mc 404
+HTTP /server/standalone/index.mjs 404
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'cpu%u %llu %llu %llu %llu %llu %llu'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK fscanf FORMAT 'processor\t: %u\n'
+SINK sscanf FORMAT '%lu kB'
+SINK sscanf FORMAT '%lu kB'
+SINK sscanf FORMAT '%lu'
+SINK sscanf FORMAT '%lu'
+SINK sscanf FORMAT '%lu'
+SINK sscanf FORMAT '%lu'
+SINK sscanf FORMAT '%lu kB'
+SINK sscanf FORMAT '%lu kB'
+SHARED_OBJECTS ["linux-vdso.so.1","/evidence/root-arm64/usr/lib/aarch64-linux-gnu/libatomic.so.1","/evidence/root-arm64/usr/lib/aarch64-linux-gnu/libdl.so.2","/evidence/root-arm64/usr/lib/aarch64-linux-gnu/libm.so.6","/evidence/root-arm64/usr/lib/aarch64-linux-gnu/libstdc++.so.6","/evidence/root-arm64/usr/lib/aarch64-linux-gnu/libgcc_s.so.1","/evidence/root-arm64/usr/lib/aarch64-linux-gnu/libpthread.so.0","/evidence/root-arm64/usr/lib/aarch64-linux-gnu/libc.so.6","/lib/ld-linux-aarch64.so.1"]
+PROBE_PASS
+[Thread 0xffff43ffeec0 (LWP 2569) exited]
+[Thread 0xffff437eeec0 (LWP 2570) exited]
+[Thread 0xffff8093bec0 (LWP 2568) exited]
+[Thread 0xffff8114bec0 (LWP 2567) exited]
+[Thread 0xffff8226eec0 (LWP 2564) exited]
+[Thread 0xffff82a7eec0 (LWP 2563) exited]
+[Thread 0xffff842aeec0 (LWP 2560) exited]
+[Thread 0xffff83a9eec0 (LWP 2561) exited]
+[Thread 0xffff8328eec0 (LWP 2562) exited]
+[Thread 0xffff849c2a60 (LWP 2558) exited]
+[Thread 0xffff8198bec0 (LWP 2565) exited]
+[New process 2558]
+[Inferior 1 (process 2558) exited normally]

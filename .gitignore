@@ -1,5 +1,6 @@
 node_modules
 dist
+out/
 .env
 *.log
 screenshots/
@@ -12,3 +13,4 @@ output/
 3d-models/
 pinokio/ENVIRONMENT
 pinokio/.installed
+mise.toml

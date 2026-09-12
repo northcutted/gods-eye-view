@@ -1783,8 +1783,9 @@ export class GevRealtimeController {
       connection: this.connectionDiagnostics(),
       recentErrors: this.errors.slice(),
       debugLog: {
-        endpoint: DEBUG_LOG_URL,
-        file: '.gev-logs/realtime-conversations.jsonl',
+        enabled: globalThis.__GEV_CONFIG__?.realtimeDebugLogging !== false,
+        endpoint: globalThis.__GEV_CONFIG__?.realtimeDebugLogging === false ? null : DEBUG_LOG_URL,
+        file: globalThis.__GEV_CONFIG__?.realtimeDebugLogging === false ? null : '.gev-logs/realtime-conversations.jsonl',
         sessionId: this.sessionId,
       },
       cost: this.costTracker.state(),
@@ -2188,6 +2189,9 @@ function releaseStartResources({ localStream = null, localPc = null } = {}) {
 }
 
 function postDebugLog(record) {
+  // Deployed images have no conversation-log endpoint or writable log directory.
+  // This is a client-side courtesy; the server independently omits the route.
+  if (globalThis.__GEV_CONFIG__?.realtimeDebugLogging === false) return;
   try {
     const body = JSON.stringify(record);
     if (navigator.sendBeacon) {

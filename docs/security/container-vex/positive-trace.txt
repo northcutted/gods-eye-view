@@ -1,0 +1,55 @@
+Breakpoint 1 at 0x810420
+Breakpoint 2 at 0x8121d0
+Breakpoint 3 at 0x811660
+Function "__isoc99_fscanf" not defined.
+Breakpoint 4 (__isoc99_fscanf) pending.
+Function "ungetwc" not defined.
+Breakpoint 5 (ungetwc) pending.
+Function "_IO_wdefault_pbackfail" not defined.
+Breakpoint 6 (_IO_wdefault_pbackfail) pending.
+Function "ns_sprintrr" not defined.
+Breakpoint 7 (ns_sprintrr) pending.
+Function "ns_sprintrrf" not defined.
+Breakpoint 8 (ns_sprintrrf) pending.
+Function "__ns_sprintrr" not defined.
+Breakpoint 9 (__ns_sprintrr) pending.
+Function "__ns_sprintrrf" not defined.
+Breakpoint 10 (__ns_sprintrrf) pending.
+Function "fp_nquery" not defined.
+Breakpoint 11 (fp_nquery) pending.
+Function "__fp_nquery" not defined.
+Breakpoint 12 (__fp_nquery) pending.
+Breakpoint 13 at 0x196c910
+Breakpoint 14 at 0x196d2bc
+Breakpoint 15 at 0x196cedc
+Breakpoint 16 at 0x196d250
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/aarch64-linux-gnu/libthread_db.so.1".
+SINK __isoc99_sscanf FORMAT '%3mc'
+SINK ungetwc
+SINK __fp_nquery
+SINK gzwrite
+SINK gzprintf
+SINK gzvprintf
+SINK gz_vacate
+POSITIVE_CONTROL_PASS
+SINK sscanf FORMAT '%u.%u.%u'
+[New Thread 0xffff816eeec0 (LWP 2546)]
+[New Thread 0xffff80edeec0 (LWP 2547)]
+[New Thread 0xffff7bffeec0 (LWP 2548)]
+[New Thread 0xffff7b7eeec0 (LWP 2549)]
+[New Thread 0xffff7afdeec0 (LWP 2550)]
+SINK sscanf FORMAT '%lu'
+SINK sscanf FORMAT '%lu'
+SINK sscanf FORMAT '%lu kB'
+[New Thread 0xffff805fbec0 (LWP 2551)]
+CONTROL_NODE_EXIT
+[Thread 0xffff7afdeec0 (LWP 2550) exited]
+[Thread 0xffff7b7eeec0 (LWP 2549) exited]
+[Thread 0xffff7bffeec0 (LWP 2548) exited]
+[Thread 0xffff80edeec0 (LWP 2547) exited]
+[Thread 0xffff816eeec0 (LWP 2546) exited]
+[Thread 0xffff81e90020 (LWP 2544) exited]
+[Thread 0xffff805fbec0 (LWP 2551) exited]
+[New process 2544]
+[Inferior 1 (process 2544) exited normally]

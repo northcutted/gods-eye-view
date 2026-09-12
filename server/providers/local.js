@@ -28,7 +28,6 @@ import { resolveGoogleServerKey } from '../../scripts/google-server-key.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import { promises as fsp } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -76,6 +75,10 @@ import { VOICE_MODELS, isKnownVoiceTier, resolveVoiceModel } from '../../src/voi
 
 /** Resolve __dirname for ESM context. */
 const __dirname = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+
+// The container mounts only this directory writable; local development retains
+// its existing checkout-relative cache location.
+const CACHE_ROOT = path.resolve(process.env.GEV_CACHE_DIR || path.join(process.cwd(), '.gev-cache'));
 
 /**
  * Which launcher started this process, captured at MODULE LOAD — before the
@@ -216,7 +219,7 @@ const OVERPASS_DISK_TTL_MS = 7 * 86_400_000;
  */
 const OVERPASS_BOUNDARY_DISK_TTL_MS = 30 * 86_400_000;
 /** Disk-cache directory for Overpass responses. */
-const OVERPASS_DISK_DIR = path.join(process.cwd(), '.gev-cache', 'overpass');
+const OVERPASS_DISK_DIR = path.join(CACHE_ROOT, 'overpass');
 /** Per-upstream fetch timeout (ms). */
 const OVERPASS_TIMEOUT_MS = 22000;
 /** Max entries in the Overpass response cache (LRU-like, oldest evicted first). */
@@ -1551,7 +1554,7 @@ function buildOpenSkyHeaders({ cacheStatus, requestedMode, usedMode, reason, sta
  */
 function celestrakProxy() {
   const TLE_TTL_MS = 6 * 3600_000;
-  const CACHE_DIR = path.join(process.cwd(), '.gev-cache');
+  const CACHE_DIR = CACHE_ROOT;
   const mem = new Map(); // group -> { at: epochMs, body: string }
   const inflight = new Map(); // group -> Promise<{at, body}|null>
 
@@ -1667,7 +1670,7 @@ function rocketLaunchesProxy() {
   const ttlMs = LL2_CACHE_TTL_MS;
   const maxResponseBytes = 12 * 1024 * 1024;
   const maxDiskCacheBytes = 24 * 1024 * 1024;
-  const cachePath = path.join(process.cwd(), '.gev-cache', 'launch-library-2-v2.3.json');
+  const cachePath = path.join(CACHE_ROOT, 'launch-library-2-v2.3.json');
   let cache = null;
   let diskLoaded = false;
   const inFlight = new Map();
@@ -1803,7 +1806,7 @@ function rocketLaunchesProxy() {
  */
 function tomtomProxy() {
   const TILE_TTL_MS = 120_000;
-  const CACHE_DIR = path.join(process.cwd(), '.gev-cache', 'tomtom');
+  const CACHE_DIR = path.join(CACHE_ROOT, 'tomtom');
   const BUDGET_PATH = path.join(CACHE_DIR, 'budget.json');
   const DEFAULT_DAILY_BUDGET = 40000;
   const MEM_MAX_ENTRIES = 256;
@@ -2032,7 +2035,7 @@ function firmsProxy() {
   const TTL_MS = 30 * 60_000;
   const STATUS_TTL_MS = 5 * 60_000;
   const SOURCES = ['VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT', 'VIIRS_SNPP_NRT'];
-  const CACHE_DIR = path.join(process.cwd(), '.gev-cache');
+  const CACHE_DIR = CACHE_ROOT;
   const CACHE_PATH = path.join(CACHE_DIR, 'firms.json');
 
   /** @type {?{at: number, sources: Array<object>, fires: Array<object>}} */
@@ -2241,7 +2244,7 @@ function firmsProxy() {
  */
 function terrainHeightsProxy() {
   const TTL_MS = 30 * 24 * 3600_000;
-  const CACHE_DIR = path.join(process.cwd(), '.gev-cache');
+  const CACHE_DIR = CACHE_ROOT;
   const CACHE_PATH = path.join(CACHE_DIR, 'terrain-heights.json');
   const UPSTREAM_CHUNK = 256;
   const MAX_POINTS = 2000;
@@ -2390,7 +2393,7 @@ function terrainHeightsProxy() {
  */
 function adsbdbProxy() {
   const TTL_MS = 24 * 3600_000;
-  const CACHE_PATH = path.join(process.cwd(), '.gev-cache', 'adsbdb.json');
+  const CACHE_PATH = path.join(CACHE_ROOT, 'adsbdb.json');
   let cache = { routes: {}, aircraft: {} };
   let dirty = false;
   let loaded = false;
@@ -5068,7 +5071,7 @@ function trackBackfillProxies() {
  * Keeps OPENAI_API_KEY server-side while the browser connects to the
  * Realtime API over WebRTC with a short-lived secret.
  */
-export function openAiRealtimeProxy() {
+export function openAiRealtimeProxy({ includeRealtimeDebugLog = true } = {}) {
   function install(middlewares) {
     middlewares.use('/api/openai/hud-summary', async (req, res) => {
       if (req.method !== 'POST') {
@@ -5132,7 +5135,9 @@ export function openAiRealtimeProxy() {
       }
     });
 
-    middlewares.use('/api/realtime/debug-log', async (req, res) => {
+    // Conversation-file persistence is a development feature. Production does
+    // not register this route, including Connect's case/prefix aliases.
+    if (includeRealtimeDebugLog) middlewares.use('/api/realtime/debug-log', async (req, res) => {
       if (req.method !== 'POST') {
         res.statusCode = 405;
         res.setHeader('Content-Type', 'application/json');
@@ -6731,7 +6736,7 @@ export const MILITARY_INSTALLATION_ELEMENT_CAP = 700;
  */
 const MILITARY_INSTALLATION_DISK_TTL_MS = 30 * 86_400_000;
 /** Disk-cache directory for mapped installation payloads. */
-const MILITARY_INSTALLATION_DISK_DIR = path.join(process.cwd(), '.gev-cache', 'military-installations');
+const MILITARY_INSTALLATION_DISK_DIR = path.join(CACHE_ROOT, 'military-installations');
 /**
  * Cache-key grid step in degrees (~5.5 km).
  *
@@ -7742,7 +7747,8 @@ function keySetupEndpoint() {
 }
 
 /** Construct the local provider plugins in their established order. */
-export function localProviderPlugins() {
+export function localProviderPlugins({ includeKeySetup = true, includeRealtimeDebugLog = true, WebSocketImpl } = {}) {
+  if (WebSocketImpl) _aisWebSocketImpl = WebSocketImpl;
   return [
       openSkyProxy(),
       celestrakProxy(),
@@ -7761,8 +7767,8 @@ export function localProviderPlugins() {
       adsbLolProxy(),
       aisLiveProxy(),
       trackBackfillProxies(),
-      openAiRealtimeProxy(),
+      openAiRealtimeProxy({ includeRealtimeDebugLog }),
       googlePlacesContextProxy(),
-      keySetupEndpoint(),
+      ...(includeKeySetup ? [keySetupEndpoint()] : []),
   ];
 }

@@ -1,0 +1,263 @@
+{
+  "schema": "gods-eye-view/container-vex-assessment/v1",
+  "assessmentTimestamp": "2026-09-12T02:10:53Z",
+  "approval": "not-approved",
+  "gateExceptionsEnabled": false,
+  "scope": "Four Debian package findings in the exact local application image only",
+  "indexDigest": "sha256:f79bf925ec74e09c1e4f391cb0631666ef17e12e5e5aebd388ad7f19910a4fec",
+  "baseIndexDigest": "sha256:f7e3539249fa844f7019255d3ed1acb5faf626006607a602f8a24d59f0a97c6c",
+  "checkout": "350896a plus uncommitted deployment changes; manifests identify built bytes",
+  "nodeVersion": "26.8.2",
+  "embeddedZlibVersion": "1.3.2.1-motley-5eb4d7e",
+  "embeddedZlibCoveredByDebianException": false,
+  "nodeSourceSha256": "36b37bf5ee4d092b9d9dff2d1a90b1444f8b453eddf6ff96cabdebb97d32f41d",
+  "validation": {
+    "staticPlatforms": ["linux/amd64", "linux/arm64"],
+    "dynamicPlatforms": ["linux/arm64"],
+    "method": "ELF inventory/imports; exact Node source review; GDB sink breakpoints with safe positive controls; actual production bundle and local HTTP/compression/DNS fixtures",
+    "positiveControl": "passed; scanf allocation conversion, ungetwc, fp_nquery, Node embedded gzip-file functions",
+    "ordinaryWorkload": "passed; fixed numeric scanf formats only; other candidate sinks not hit",
+    "limitations": [
+      "Bounded dynamic coverage, not exhaustive reachability proof",
+      "AMD64 native dynamic rerun required before release-specific activation",
+      "No claim of a patched Debian package or fixed embedded zlib",
+      "No active VEX or scanner suppression; owner review and signed release subjects required"
+    ]
+  },
+  "platforms": [
+    {
+      "platform": {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      "manifest": "sha256:473bb6f98da445b7416f5d36a1d6c28337b29ff030c4a46db5a82cd8e9bddadd",
+      "elfCount": 285,
+      "nativeFiles": [
+        {
+          "path": "nodejs/bin/node",
+          "sha256": "8a22a371fd85aecf5411636574309f6380fbc42694aaf0651a089a8ef9c44e52",
+          "needed": [
+            "libatomic.so.1",
+            "libdl.so.2",
+            "libm.so.6",
+            "libstdc++.so.6",
+            "libgcc_s.so.1",
+            "libpthread.so.0",
+            "libc.so.6",
+            "ld-linux-x86-64.so.2"
+          ]
+        },
+        {
+          "path": "usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+          "sha256": "438c546d8e8cc48496bf3a95f753051afd9db66a629a74e31a9ded71586b56e0",
+          "needed": []
+        },
+        {
+          "path": "usr/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "fa430b8f298f817a266046af84a77533185ad6fc4406c7d3787b5a0a0c207826",
+          "needed": ["ld-linux-x86-64.so.2"]
+        },
+        {
+          "path": "usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33",
+          "sha256": "972bb2a18b71140dab0240f8a1f68ab3fb1d56bcd4c4f824a91b70888faf5a00",
+          "needed": [
+            "libm.so.6",
+            "libc.so.6",
+            "ld-linux-x86-64.so.2",
+            "libgcc_s.so.1"
+          ]
+        },
+        {
+          "path": "usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
+          "sha256": "85590dd58edf5445e18bc7193e5ebc01ac5841f1ae187e97705a662e90c6421e",
+          "needed": ["libc.so.6"]
+        }
+      ],
+      "sensitiveImports": [
+        {
+          "path": "nodejs/bin/node",
+          "imports": [
+            "__isoc99_sscanf@GLIBC_2.7",
+            "sscanf@GLIBC_2.2.5",
+            "fscanf@GLIBC_2.2.5"
+          ]
+        },
+        {
+          "path": "usr/lib/x86_64-linux-gnu/libcrypto.so.3",
+          "imports": ["__isoc99_sscanf@GLIBC_2.7"]
+        },
+        {
+          "path": "usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33",
+          "imports": ["ungetwc@GLIBC_2.2.5"]
+        }
+      ],
+      "findings": [
+        {
+          "cve": "CVE-2026-5450",
+          "severity": "Critical",
+          "package": "libc6",
+          "version": "2.41-12+deb13u3",
+          "purl": "pkg:deb/debian/libc6@2.41-12%2Bdeb13u3?arch=amd64&distro=debian-13.6&upstream=glibc",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          }
+        },
+        {
+          "cve": "CVE-2026-85091",
+          "severity": "High",
+          "package": "zlib1g",
+          "version": "1:1.3.dfsg+really1.3.1-1+b1",
+          "purl": "pkg:deb/debian/zlib1g@1%3A1.3.dfsg%2Breally1.3.1-1%2Bb1?arch=amd64&distro=debian-13.6&upstream=zlib%401%3A1.3.dfsg%2Breally1.3.1-1",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          }
+        },
+        {
+          "cve": "CVE-2026-5928",
+          "severity": "High",
+          "package": "libc6",
+          "version": "2.41-12+deb13u3",
+          "purl": "pkg:deb/debian/libc6@2.41-12%2Bdeb13u3?arch=amd64&distro=debian-13.6&upstream=glibc",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          }
+        },
+        {
+          "cve": "CVE-2026-5435",
+          "severity": "High",
+          "package": "libc6",
+          "version": "2.41-12+deb13u3",
+          "purl": "pkg:deb/debian/libc6@2.41-12%2Bdeb13u3?arch=amd64&distro=debian-13.6&upstream=glibc",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          }
+        }
+      ]
+    },
+    {
+      "platform": {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      "manifest": "sha256:35d4a9e65095dc4131eb7f666781dcaad34b842acacf7fc2339c2a09949c74cc",
+      "elfCount": 284,
+      "nativeFiles": [
+        {
+          "path": "nodejs/bin/node",
+          "sha256": "79cacf598919b276679de47040fab8039ed76eab731f38f937995926caec4ae8",
+          "needed": [
+            "libatomic.so.1",
+            "libdl.so.2",
+            "libm.so.6",
+            "libstdc++.so.6",
+            "libgcc_s.so.1",
+            "libpthread.so.0",
+            "libc.so.6",
+            "ld-linux-aarch64.so.1"
+          ]
+        },
+        {
+          "path": "usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
+          "sha256": "1d8b77f28b7cec0329dca107a28fb0a850193b1dcce59be68fa0b06b514548cc",
+          "needed": []
+        },
+        {
+          "path": "usr/lib/aarch64-linux-gnu/libc.so.6",
+          "sha256": "9a325944115b36e74077786b29531963d96cd55cd6c82f11750a352cdb58fab0",
+          "needed": ["ld-linux-aarch64.so.1"]
+        },
+        {
+          "path": "usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.33",
+          "sha256": "fff1f0050a33ddf29c44634c7639ac16e2573a61e3daab4fcc4c007b432ccf19",
+          "needed": ["libm.so.6", "libc.so.6", "libgcc_s.so.1"]
+        },
+        {
+          "path": "usr/lib/aarch64-linux-gnu/libz.so.1.3.1",
+          "sha256": "6fe00acadf8119ff245855e5dcc7f26c6c0ffaf4bfa2baa88feab58f23727d65",
+          "needed": ["libc.so.6", "ld-linux-aarch64.so.1"]
+        }
+      ],
+      "sensitiveImports": [
+        {
+          "path": "nodejs/bin/node",
+          "imports": [
+            "sscanf@GLIBC_2.17",
+            "fscanf@GLIBC_2.17",
+            "__isoc99_sscanf@GLIBC_2.17"
+          ]
+        },
+        {
+          "path": "usr/lib/aarch64-linux-gnu/libcrypto.so.3",
+          "imports": ["__isoc99_sscanf@GLIBC_2.17"]
+        },
+        {
+          "path": "usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.33",
+          "imports": ["ungetwc@GLIBC_2.17"]
+        }
+      ],
+      "findings": [
+        {
+          "cve": "CVE-2026-5450",
+          "severity": "Critical",
+          "package": "libc6",
+          "version": "2.41-12+deb13u3",
+          "purl": "pkg:deb/debian/libc6@2.41-12%2Bdeb13u3?arch=arm64&distro=debian-13.6&upstream=glibc",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          }
+        },
+        {
+          "cve": "CVE-2026-85091",
+          "severity": "High",
+          "package": "zlib1g",
+          "version": "1:1.3.dfsg+really1.3.1-1+b1",
+          "purl": "pkg:deb/debian/zlib1g@1%3A1.3.dfsg%2Breally1.3.1-1%2Bb1?arch=arm64&distro=debian-13.6&upstream=zlib%401%3A1.3.dfsg%2Breally1.3.1-1",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          }
+        },
+        {
+          "cve": "CVE-2026-5928",
+          "severity": "High",
+          "package": "libc6",
+          "version": "2.41-12+deb13u3",
+          "purl": "pkg:deb/debian/libc6@2.41-12%2Bdeb13u3?arch=arm64&distro=debian-13.6&upstream=glibc",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          }
+        },
+        {
+          "cve": "CVE-2026-5435",
+          "severity": "High",
+          "package": "libc6",
+          "version": "2.41-12+deb13u3",
+          "purl": "pkg:deb/debian/libc6@2.41-12%2Bdeb13u3?arch=arm64&distro=debian-13.6&upstream=glibc",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          }
+        }
+      ]
+    }
+  ],
+  "logs": [
+    {
+      "name": "runtime-trace.txt",
+      "sha256": "46b242ec727529f407891ab74f909952bf8546a1f8ce450f1b9587bb30652d20"
+    },
+    {
+      "name": "positive-trace.txt",
+      "sha256": "5f56947dab880a7a0ef8ca9339edb9feb8da385567c732fc75026b8b47f4b222"
+    }
+  ],
+  "inspectionSha256": "0989f8af5fe4a0d0dfae430f4d15e3f6c12481acd46bba382595334f5b52fe6b",
+  "canonicalArtifacts": "/private/var/folders/71/c1wqy1_x26s5tgyqvfv1mhcr0000gn/T/codex-security-scans/gods-eye-view/350896a_20260912T021053Z",
+  "rawWorkingEvidence": "/private/tmp/gev-vex-assessment"
+}

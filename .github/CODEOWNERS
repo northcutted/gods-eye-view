@@ -1,1 +1,13 @@
 * @bilawalsidhu @samehkhamis
+
+# Container and supply-chain changes in this fork require the publishing owner.
+/.github/ @northcutted
+/Dockerfile @northcutted
+/.dockerignore @northcutted
+/compose.yaml @northcutted
+/package.json @northcutted
+/package-lock.json @northcutted
+/scripts/build-container.mjs @northcutted
+/scripts/test-container.mjs @northcutted
+/scripts/test-container-browser.mjs @northcutted
+/server/ @northcutted
