@@ -109,6 +109,14 @@ jobs:
         run: podman build --format oci --tag localhost/gods-eye-view:check .
       - name: Test container startup, restrictions, and shutdown
         run: CONTAINER_ENGINE=podman node scripts/test-container.mjs localhost/gods-eye-view:check
+      # Chrome for Testing provides Linux AMD64 builds. Both image architectures
+      # still run the runtime checks above; Chrome is never added to the image.
+      - name: Test first-run browser experience (AMD64)
+        if: matrix.runner == 'ubuntu-24.04'
+        uses: ./.github/actions/container-browser
+        with:
+          image: localhost/gods-eye-view:check
+          artifact-name: container-browser-check-amd64
 
   build:
     name: Build, test, and scan image (${{ matrix.arch }})
@@ -181,6 +189,12 @@ jobs:
           set -euo pipefail
           podman pull "$IMAGE@$DIGEST"
           CONTAINER_ENGINE=podman node scripts/test-container.mjs "$IMAGE@$DIGEST"
+      - name: Test first-run browser experience (AMD64)
+        if: matrix.arch == 'amd64'
+        uses: ./.github/actions/container-browser
+        with:
+          image: ${{ needs.prepare.outputs.image }}@${{ steps.build.outputs.digest }}
+          artifact-name: container-browser-release-amd64
       - name: Scan image and block fixable High/Critical findings
         id: scan
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2

@@ -11,7 +11,10 @@ import {
   configurationScript,
   createProductionServer,
 } from '../../server/standalone/http.js';
-import { localProviderPlugins } from '../../server/providers/local.js';
+import {
+  localProviderPlugins,
+  openAiRealtimeProxy,
+} from '../../server/providers/local.js';
 
 test('runtime configuration exposes only public keys and safely serializes script text', () => {
   const env = {
@@ -26,10 +29,28 @@ test('runtime configuration exposes only public keys and safely serializes scrip
   const context = {};
   vm.runInNewContext(script, context);
   assert.equal(context.__GEV_CONFIG__.googleApiKey, env.GOOGLE_MAPS_API_KEY);
+  assert.equal(context.__GEV_CONFIG__.realtimeDebugLogging, false);
   assert.deepEqual(Object.keys(browserConfiguration(env)), [
     'googleApiKey',
     'cesiumToken',
+    'realtimeDebugLogging',
   ]);
+});
+
+test('production omits conversation persistence without removing other voice routes', () => {
+  const routes = (plugin) => {
+    const paths = [];
+    plugin.configureServer({
+      middlewares: { use: (route) => paths.push(route) },
+    });
+    return paths;
+  };
+  const development = routes(openAiRealtimeProxy());
+  assert.ok(development.includes('/api/realtime/debug-log'));
+  assert.deepEqual(
+    routes(openAiRealtimeProxy({ includeRealtimeDebugLog: false })),
+    development.filter((route) => route !== '/api/realtime/debug-log'),
+  );
 });
 
 test('production retains every provider except the credential-writing development surface', () => {

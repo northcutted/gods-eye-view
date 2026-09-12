@@ -57,6 +57,12 @@ Do not add `--volumes` to `down` unless you mean to delete the saved cache
 **and its provider usage counter**. Review logs before sharing them; never
 paste your `.env` or a full resolved Compose configuration into a public issue.
 
+Server-side voice conversation logs are disabled in the deployed app. The
+browser does not send those records, and `/api/realtime/debug-log` is not
+registered. Ordinary process messages still appear in `docker compose logs`;
+there is no `.gev-logs` volume to configure. This does not change the local
+development server's conversation logging or your voice provider's policies.
+
 ### Port 8080 already taken?
 
 Add `GEV_HTTP_PORT=9090` to your existing `.env` (or create it), then run
@@ -173,6 +179,36 @@ See [Docker's volume guide](https://docs.docker.com/engine/storage/volumes/).
 
 Start with **one app instance**. Its usage counters are not a shared,
 transactional budget across replicas, even if several instances share files.
+
+### Running on a NAS
+
+Use the same image and safety settings on a Synology or another Linux NAS.
+Once a verified release is available, pulling it is usually more practical
+than compiling the app on the NAS. Import the Compose project into your NAS's
+container manager, set `GEV_IMAGE` to the verified digest, and remove `build`.
+Keep the default entrypoint; you do not need a terminal or npm inside the image.
+
+- **Check the Compose version, not just the Docker version.** Our optional
+  `.env` syntax needs Compose 2.24+. If the NAS's project importer rejects it,
+  update Compose or replace `env_file` with the manager's explicit environment
+  settings. A keyless installation can omit `env_file` altogether.
+- **Prefer the named cache volume.** It avoids many shared-folder ownership
+  surprises. If you choose a host folder, grant UID/GID `65532:65532` access to
+  that specific cache folder, including any NAS ACLs. Do not change the
+  container to the NAS administrator's account or make the folder world-writable.
+- **Loopback means the NAS, not your laptop.** The default published port is
+  reachable on the NAS itself. Use its authenticated HTTPS reverse proxy for
+  access from your other devices, following the proxy instructions above.
+- **Voice needs a secure browser connection.** A page opened from an ordinary
+  `http://NAS-IP:8080` address cannot request microphone access. HTTPS is needed
+  for remote devices; browsers treat local `localhost` access specially.
+  See [microphone access requirements](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia#privacy_and_security).
+- **Moving source from a Mac?** Prefer a Git checkout. The build excludes
+  AppleDouble (`._*`) and `__MACOSX` metadata alongside `.DS_Store`, so these
+  transfer artifacts do not become application assets.
+
+These are configuration guidelines, not a claim that this image has been
+tested on every NAS model or container-manager version.
 
 ## 🔄 Update or roll back
 
@@ -294,6 +330,46 @@ below. A green PR run does not mean the signing and publishing path has run.
 If branch protection already requires checks by their old names, update those
 required-check selections to match the names above after the renamed checks run.
 Changing workflow labels does not update repository protection settings.
+
+### Run the container browser check locally
+
+This is a contributor check, not a requirement for running the app. It needs
+Node/npm on the test machine because Chrome runs **outside** the app container:
+
+```sh
+npm ci --ignore-scripts
+npx --no-install puppeteer browsers install chrome
+docker build -t gods-eye-view:browser-check .
+npm run test:container:browser -- gods-eye-view:browser-check
+```
+
+The script starts a temporary container with the normal non-root/read-only
+restrictions and a loopback-only random port. It checks the keyless startup,
+first-run choices, Explore button, visible attribution, and rendered globe
+geometry. It also checks that production does not upload conversation logs.
+The temporary container and its test cache volume are removed afterward;
+your existing app container and cache are not used.
+
+Reports and screenshots go to `output/container-browser/`. Set
+`GEV_BROWSER_ARTIFACTS_DIR` to keep runs in separate directories, or
+`CONTAINER_ENGINE=podman` to use Podman. `PUPPETEER_EXECUTABLE_PATH` can select
+an already-installed compatible Chrome instead of downloading one.
+
+External provider calls get simulated unavailable responses, while OSM tile
+requests receive a tiny local fixture image. This exercises the keyless map
+fallback without keys, paid calls, or live-feed dependencies. It is **not** a
+live-data, typography, geographic-accuracy, or performance acceptance test.
+Linux CI uses software rendering; local macOS uses Metal.
+
+To check that the test catches broken startup, add `--negative-control` after
+the image name. That deliberately withholds the built application JavaScript
+and **must fail**, even though the container's HTTP health check still passes.
+
+The workflow runs this check on AMD64 for both PR validation and releases,
+before release promotion. Both AMD64 and ARM64 retain their runtime checks.
+Chrome for Testing is installed only on the test runner; neither Chrome nor
+Puppeteer is added to the distroless runtime. Actions retains browser screenshots
+and diagnostic reports for 14 days, including failures after the test starts.
 
 <details>
 <summary>Build and signing details — for maintainers and security reviewers</summary>

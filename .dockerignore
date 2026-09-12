@@ -25,4 +25,6 @@
 **/*.pem
 **/*.key
 **/.DS_Store
+**/._*
+**/__MACOSX
 **/*.test.mjs

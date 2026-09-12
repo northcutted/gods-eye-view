@@ -72,9 +72,19 @@ try {
       const get = (path) => fetch('http://127.0.0.1:8080' + path);
       const document = await (await get('/')).text();
       assert.match(document, /runtime-config\.js/);
+      for (const asset of ['/cesium/Cesium.js', '/cesium/Widgets/widgets.css']) {
+        const response = await get(asset);
+        assert.equal(response.status, 200, asset);
+        assert.ok((await response.text()).length > 100, asset);
+      }
       const config = await (await get('/runtime-config.js')).text();
       assert.match(config, /container-public-fixture/);
       assert.doesNotMatch(config, /container-private-fixture/);
+      assert.equal((await (await get('/runtime-config.js')).text()).includes('"realtimeDebugLogging":false'), true);
+      for (const path of ['/api/realtime/debug-log', '/api/realtime/debug-log/nested', '/api/realtime/debug-log.json', '/API/REALTIME/DEBUG-LOG']) {
+        assert.equal((await fetch('http://127.0.0.1:8080' + path, {method: 'POST', body: '{"fixture":true}'})).status, 404, path);
+      }
+      assert.equal(fs.existsSync('/app/.gev-logs'), false);
       assert.equal((await get('/api/setup/status')).status, 404);
       assert.equal((await get('/api/setup/keys')).status, 404);
       assert.equal((await get('/server/standalone/index.mjs')).status, 404);

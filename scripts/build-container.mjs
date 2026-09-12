@@ -1,4 +1,4 @@
-import { mkdir, cp, readFile, writeFile, rm } from 'node:fs/promises';
+import { access, mkdir, cp, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as buildBrowser } from 'vite';
@@ -34,8 +34,22 @@ await buildBrowser({
   envFile: false,
   // Also close Vite's default VITE_* exposure to inherited build environments.
   envPrefix: '__GEV_NO_BUILD_ENV__',
-  build: { outDir: path.join(out, 'dist'), chunkSizeWarningLimit: 1500 },
+  // vite-plugin-cesium joins root and outDir itself; an absolute outDir doubles
+  // the root and leaves Cesium outside the directory copied into the image.
+  build: { outDir: 'out/dist', chunkSizeWarningLimit: 1500 },
 });
+
+// The plugin logs copy failures without failing the build. Missing engine,
+// styles, workers, or data must be a build error, not a broken shipped globe.
+for (const asset of [
+  'Cesium.js',
+  'Widgets/widgets.css',
+  'Workers',
+  'Assets',
+  'ThirdParty',
+]) {
+  await access(path.join(out, 'dist/cesium', asset));
+}
 
 const result = await buildServer({
   absWorkingDir: root,

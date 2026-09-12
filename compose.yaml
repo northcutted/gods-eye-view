@@ -39,6 +39,7 @@ services:
     # No .env? The keyless app still starts. See .env.example for supported keys.
     # Keep .env private and out of Git. The in-app key-saving routes are off in
     # containers; after editing .env, run: docker compose up -d --force-recreate
+    # The optional-file syntax needs Compose 2.24+ (including NAS importers).
     # Docker does NOT automatically pass your shell's keys into the container.
     # An existing stack can replace env_file with its own environment mapping.
     env_file:
@@ -55,6 +56,7 @@ services:
     # 4. Keep the safety defaults when moving this into another stack.
     # Run as an unprivileged account. App files stay read-only; only the two
     # mounts below allow writes. No extra Linux privileges or Docker socket.
+    # NAS bind mounts must grant this UID/GID access; do not use the NAS admin UID.
     user: '65532:65532'
     read_only: true
     cap_drop: [ALL]
@@ -69,6 +71,7 @@ services:
     # caches AND TomTom's daily usage counter. Do not replace it with tmpfs.
     # `docker compose down` keeps it; `down --volumes` deletes it and its counter.
     # Start with one replica: this counter is not a shared, multi-server budget.
+    # Voice conversation-file logging is disabled; do not add a .gev-logs mount.
     volumes:
       - cache:/app/.gev-cache
     # Small, disposable scratch space. Its contents disappear on container stop.

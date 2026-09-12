@@ -1,13 +1,15 @@
 # 🧪 What we tested
 
 **The local container builds and runs. Hosted release verification is still pending.**
-Application tests and runtime safety checks passed. The original scan found four
+Application tests, runtime safety checks, and a first-run browser check passed.
+The original scan found four
 unfixed High/Critical library issues. Under the current fixable-only policy,
 those are reported without blocking; no published image or GitHub-signed build
 has been verified.
 
 This is the validation record prepared on 2026-09-11 (America/Chicago), with
-the follow-up VEX assessment and gate-policy checks on 2026-09-12 UTC. It records what was tested at
+the follow-up VEX assessment, gate-policy checks, and browser testing on
+2026-09-12 UTC. It records what was tested at
 that time, not a promise about later images. For setup and everyday commands,
 start with [Run the globe with Docker](CONTAINERS.md).
 
@@ -16,15 +18,18 @@ start with [Run the globe with Docker](CONTAINERS.md).
 The checks confirm that the app starts without a shell or npm, runs without
 root privileges, serves the built app, keeps its code read-only, and retains
 its cache across container replacement. Only the intended public browser keys
-are exposed by runtime configuration. It also shuts down cleanly when Docker
+and the disabled conversation-logging setting are exposed by runtime
+configuration. It also shuts down cleanly when Docker
 asks it to stop.
 
 <details>
 <summary>Test counts, tool versions, and build evidence</summary>
 
-- The full ordinary suite passed on Node 26.8.2 and Node 24.20.0: 2,931 passed,
+- The full ordinary suite passed on Node 26.8.2 and Node 24.20.0: 2,936 passed,
   one existing skip per runtime. Both allocation test files passed under Node 24
   (14 additional tests). Node 26 intentionally skips the allocation probes.
+  On macOS, these runs used `TMPDIR=/private/tmp` to avoid an existing fixture
+  path comparison between `/var` and its canonical `/private/var` location.
 - The adopted formatting and package boundary checks passed; the existing Vite
   browser build and the new container bundle both built. Existing large-browser-
   chunk warnings remain.
@@ -45,6 +50,44 @@ asks it to stop.
   cover the operating-system libraries below.
 
 </details>
+
+## Did the built app work in a browser?
+
+Yes, after fixing an asset-packaging bug. The first browser run found that
+Cesium's engine and supporting files were copied outside the directory shipped
+in the image. The HTTP health check passed, but the globe could not start.
+The build now keeps those files in the right directory and fails if required
+Cesium assets are missing. Both architecture runtime checks also request the
+engine and styles from the running server.
+
+The rebuilt ARM64 image passed the new browser check locally with Chrome for
+Testing 152.0.7977.75, selected by the locked Puppeteer package, on macOS/Metal:
+
+- The keyless app started, showed all four first-run choices and visible
+  attribution, and opened Explore without offering the development key panel.
+- Cesium drew globe geometry with no lost graphics context or local asset
+  failures. The recorded run rendered 12 tiles and 318 distinct sampled colors.
+  The first-run and Explore screenshots were inspected as well.
+- No conversation records were uploaded. Separate runtime tests confirmed
+  that conversation-log routes, including case and path aliases, return 404
+  and do not create `.gev-logs`. Unit tests confirmed development logging still
+  works and production skips uploads.
+- A negative control withheld the built application JavaScript. The browser
+  test failed as expected, even though the container remained healthy.
+- A real build-context test excluded AppleDouble and `__MACOSX` fixtures while
+  retaining an ordinary public asset. The temporary source fixtures were removed.
+
+This is an offline startup/rendering check: external services return simulated
+unavailable responses, and map tiles use a tiny fixture. It does not validate
+live data, real map imagery, external fonts, microphone access, or performance.
+GitHub's AMD64/software-rendering run is configured but has not run locally.
+The hardened runtime and cache-persistence checks also passed on the rebuilt
+ARM64 image; this follow-up did not regenerate the historical SBOM/VEX evidence
+or rescan the new image. A release needs fresh evidence for its own digest.
+
+See [how to run the browser check](CONTAINERS.md#run-the-container-browser-check-locally)
+for commands and report locations. CI retains its screenshots, image identity,
+container logs, and JSON results as browser-test artifacts for 14 days.
 
 ## What did the vulnerability scan find?
 
@@ -132,8 +175,9 @@ changes did not replace the underlying evidence.
   release-tag protections still need enforcement in GitHub.
 - **Check download access.** A newly created GHCR package may need its
   visibility set to public before anonymous users can pull it.
-- **Check real-world use.** The smoke checks do not exercise paid/live
-  provider accounts or establish a browser-level visual acceptance result.
+- **Check real-world use.** The browser smoke check covers offline first-run
+  startup and rendering, not paid/live provider accounts, real imagery, or a
+  full visual acceptance review. NAS-specific deployments still need testing.
 
 Re-run the image scan after every base/dependency update; this record is a dated
 snapshot, not a permanent assertion about either vulnerability status or SBOM

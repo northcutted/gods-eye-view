@@ -14,6 +14,7 @@ export function browserConfiguration(env = process.env) {
   return {
     googleApiKey: env.GOOGLE_MAPS_API_KEY || '',
     cesiumToken: env.CESIUM_ION_TOKEN || '',
+    realtimeDebugLogging: false,
   };
 }
 
@@ -32,6 +33,7 @@ export async function createProductionServer({
   env = process.env,
   plugins = localProviderPlugins({
     includeKeySetup: false,
+    includeRealtimeDebugLog: false,
     WebSocketImpl: WebSocket,
   }),
 } = {}) {

@@ -5071,7 +5071,7 @@ function trackBackfillProxies() {
  * Keeps OPENAI_API_KEY server-side while the browser connects to the
  * Realtime API over WebRTC with a short-lived secret.
  */
-export function openAiRealtimeProxy() {
+export function openAiRealtimeProxy({ includeRealtimeDebugLog = true } = {}) {
   function install(middlewares) {
     middlewares.use('/api/openai/hud-summary', async (req, res) => {
       if (req.method !== 'POST') {
@@ -5135,7 +5135,9 @@ export function openAiRealtimeProxy() {
       }
     });
 
-    middlewares.use('/api/realtime/debug-log', async (req, res) => {
+    // Conversation-file persistence is a development feature. Production does
+    // not register this route, including Connect's case/prefix aliases.
+    if (includeRealtimeDebugLog) middlewares.use('/api/realtime/debug-log', async (req, res) => {
       if (req.method !== 'POST') {
         res.statusCode = 405;
         res.setHeader('Content-Type', 'application/json');
@@ -7745,7 +7747,7 @@ function keySetupEndpoint() {
 }
 
 /** Construct the local provider plugins in their established order. */
-export function localProviderPlugins({ includeKeySetup = true, WebSocketImpl } = {}) {
+export function localProviderPlugins({ includeKeySetup = true, includeRealtimeDebugLog = true, WebSocketImpl } = {}) {
   if (WebSocketImpl) _aisWebSocketImpl = WebSocketImpl;
   return [
       openSkyProxy(),
@@ -7765,7 +7767,7 @@ export function localProviderPlugins({ includeKeySetup = true, WebSocketImpl } =
       adsbLolProxy(),
       aisLiveProxy(),
       trackBackfillProxies(),
-      openAiRealtimeProxy(),
+      openAiRealtimeProxy({ includeRealtimeDebugLog }),
       googlePlacesContextProxy(),
       ...(includeKeySetup ? [keySetupEndpoint()] : []),
   ];

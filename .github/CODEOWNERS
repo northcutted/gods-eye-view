@@ -9,4 +9,5 @@
 /package-lock.json @northcutted
 /scripts/build-container.mjs @northcutted
 /scripts/test-container.mjs @northcutted
+/scripts/test-container-browser.mjs @northcutted
 /server/ @northcutted
