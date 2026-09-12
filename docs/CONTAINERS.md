@@ -257,6 +257,44 @@ SLSA Build L3 provenance. **That claim still needs a successful hosted build
 and independent verification.** Local builds do not get a GitHub-signed
 attestation merely because they use the same Dockerfile.
 
+### Reading the GitHub Actions checks
+
+There are two workflows in the Actions tab:
+
+- **Application checks** tests the app on Node 24 and 26, builds its browser
+  assets, and checks the Windows installation path used by Pinokio.
+- **Container build and release** checks the container and, for eligible runs,
+  publishes images to GitHub Container Registry. It does not deploy the app
+  to your server or restart your containers.
+
+The container workflow has two paths. Pull requests and manual runs on
+non-default branches build and test without publishing. Runs on the default
+branch (`main`) and supported version-tag pushes take the release path.
+
+| Job in Actions                               | What it does                                                                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Check application**                        | Runs formatting, package import-boundary checks, and unit tests on each listed Node version.                                                               |
+| **Choose build-only or release**             | Sets the image name and version, and decides which path this run can take. Runs alongside the application checks.                                          |
+| **Test container without publishing**        | Builds and tests an image on AMD64 and ARM64, without uploading it to the registry. This is the build-only path.                                           |
+| **Build, test, and scan image**              | Builds each architecture, uploads a temporary staging image with its dependency inventory and build records, then tests and scans that exact image.        |
+| **Assemble multi-platform image**            | Joins the tested AMD64 and ARM64 images under one reference so Docker can select the right architecture.                                                   |
+| **Sign build provenance (SLSA)**             | Calls the isolated signing workflow to attach a signed record of where the build came from.                                                                |
+| **Verify evidence and publish release tags** | Checks the signed build record and attached inventories, then gives the verified image its release tags. Uploads the verification evidence for inspection. |
+
+On a pull request, skipped release jobs are expected. On a release run, the
+build-only job is skipped instead. If a check fails, later jobs on that path
+do not proceed. Open the failed job and step to see which check needs attention.
+
+A **staging image** is a candidate uploaded for testing, not an approved release.
+Only the final verification job assigns tags such as `main`, a version, or
+`latest`; it does not rebuild the image. The vulnerability step blocks
+High/Critical findings with available fixes and reports the others, as described
+below. A green PR run does not mean the signing and publishing path has run.
+
+If branch protection already requires checks by their old names, update those
+required-check selections to match the names above after the renamed checks run.
+Changing workflow labels does not update repository protection settings.
+
 <details>
 <summary>Build and signing details — for maintainers and security reviewers</summary>
 

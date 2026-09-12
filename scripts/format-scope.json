@@ -39,6 +39,7 @@
   "scripts/test-container.mjs",
   "src/tooling/productionServer.test.mjs",
   ".github/workflows/container.yml",
+  ".github/workflows/ci.yml",
   ".github/grype.yaml",
   ".github/dependabot.yml",
   "compose.yaml",
