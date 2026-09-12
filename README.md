@@ -83,7 +83,7 @@ Start with the included data sources, then add your own. Each layer is a separat
 
 ## ⚡ Quick Start
 
-**Start without an account or API keys.** Both paths open the same app with
+**Start without an account or API keys.** All three paths open the same app with
 Esri satellite imagery and keyless terrain. OSM is the fallback if Esri is
 unreachable. Flights, military traffic, satellites, earthquakes, public
 cameras, radio, and launches are available without keys.
@@ -138,6 +138,13 @@ configured keys straight from the Keychain. It starts keyless too.
 
 ### Path 3 — Docker / existing container stack
 
+**For running the app as a service.** The container serves prebuilt, compressed
+assets and reuses the same live-data handlers as the development server. It adds
+a shell-free, non-root runtime, repeatable image updates, and verifiable build
+records. Pinokio remains the one-click desktop option; `npm run dev` keeps hot
+reload for contributors. See [why this deployment exists](docs/CONTAINERS.md#-why-a-container)
+and the [measured comparison](docs/PERFORMANCE.md#container-versus-npm-run-dev).
+
 No local Node or npm install needed. From a checkout of this repository, with
 Docker and **Compose 2.24 or newer**:
 
@@ -147,6 +154,10 @@ docker compose up --build -d
 
 Open **http://localhost:8080**. It starts without API keys and keeps its cache
 across container replacement. Direct access stays on the Docker host by default.
+
+The canonical image address is `ghcr.io/bilawalsidhu/gods-eye-view`.
+Use a verified digest from `bilawalsidhu/gods-eye-view` after upstream publication;
+until then, the local build above is the starting point.
 
 **Keys work differently here:** put optional keys in a private `.env` beside
 `compose.yaml`, then run `docker compose up -d --force-recreate app`.

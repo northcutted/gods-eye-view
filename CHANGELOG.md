@@ -22,8 +22,8 @@ of current runtime behavior, see [`docs/CURRENT-STATE.md`](docs/CURRENT-STATE.md
 - AMD64 and ARM64 image builds with dependency inventories, signed build
   provenance, and verification before release tags are published. High/Critical
   findings block release when a fix is available; unfixed findings stay in the
-  reports. Verified version tags also publish a GitHub Release with image
-  references and the matching evidence files.
+  reports. The Actions summary provides exact image references and downloadable
+  verification evidence; Dependabot tracks the runtime and build-tool pins.
 - A first-run browser smoke test against the built container, plus Docker/NAS
   setup notes informed by SM-26's Docker install work (#208).
 - Split aircraft and vessel server providers into focused modules for source
@@ -59,10 +59,6 @@ of current runtime behavior, see [`docs/CURRENT-STATE.md`](docs/CURRENT-STATE.md
   those exports separate from app startup and local Node services.
 
 ### Fixed
-
-- Keep Cesium's engine, styles, workers, and data inside the container's built
-  asset directory. The browser smoke test caught an output-path mismatch that
-  could leave the HTML healthy while the globe failed to start.
 
 - Separate optional Google server credentials for Places and Street View from
   the browser key, contributed by Tom-Neverwinter (#110). Provider Settings,

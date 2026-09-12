@@ -8,8 +8,11 @@ services:
   app:
     # 1. Choose where the app comes from.
     # By default, build this checkout and call the image gods-eye-view:local.
-    # After a verified release is available, set GEV_IMAGE in your .env to:
-    #   ghcr.io/northcutted/gods-eye-view@sha256:<verified-release-digest>
+    # Canonical published image: ghcr.io/bilawalsidhu/gods-eye-view
+    # After upstream publication, copy the verified digest from the
+    # bilawalsidhu/gods-eye-view Actions summary into GEV_IMAGE in your .env:
+    #   ghcr.io/bilawalsidhu/gods-eye-view@sha256:<verified-digest>
+    # Until a verified upstream image is available, use the local build above.
     # Then use: docker compose pull app && docker compose up -d --no-build app
     # Copying this service into another stack? Remove `build` when using a
     # published image; otherwise context: . would build that stack's directory.

@@ -142,3 +142,126 @@ Use the same controls before attributing a difference to the application:
 
 Use this page as a regression baseline for one known hardware and browser
 configuration, not as a compatibility guarantee.
+
+## Container versus npm run dev
+
+This is a separate comparison on an Apple M1 Pro, not a rerun of the M5
+baseline above. It compares the production container with the normal Vite
+development server. Pinokio itself was not benchmarked: its installation,
+launcher, and credential setup are different concerns.
+
+The container bundles and minifies browser code and serves Brotli/gzip copies
+prepared at build time. Development deliberately keeps source modules and hot
+reload. Those choices can improve page delivery; distroless itself does not
+accelerate Cesium or make live providers respond faster.
+
+### September 12, 2026 results
+
+Seven measured runs per mode, plus one unreported warm-up each, completed all
+startup and globe-rendering checks. The [per-run evidence](benchmarks/container-vs-dev-2026-09-12.json)
+keeps every measured sample, the image identity, source commit, tool versions,
+and hardware details. These are medians, not best runs:
+
+| Measurement | npm run dev | Container |
+| --- | ---: | ---: |
+| Visible, usable first-run launcher | 2,544 ms | 2,318 ms |
+| Page-asset transfer | 34.15 MiB | 4.49 MiB |
+| Page-asset requests | 216 | 24 |
+| Load event | 654 ms | 578 ms |
+| Browser JS heap estimate | 72.83 MiB | 41.67 MiB |
+| Simple-globe motion | 58.8 FPS | 57.8 FPS |
+
+The container reached the launcher **8.9% sooner** and transferred **86.8% fewer
+page-asset bytes**. It was quicker to reach the launcher in all seven pairs.
+There was **no frame-rate improvement**: the container's median was about
+1 FPS lower. This supports a delivery/startup benefit, not a claim that Docker
+improves rendering or every interaction.
+
+Both used Node 26.8.2 and the browser application source at `9716fcc`, with the
+container's precompression/server changes applied. Chrome 152.0.7977.75 used
+Apple M1 Pro Metal on a 16 GiB Mac. Development ran natively; the ARM64 container
+ran through Podman's Linux VM with the Compose-equivalent 2 CPU/1 GiB limits.
+This practical local comparison does not isolate bundling, compression, runtime,
+or VM overhead individually. It is not a network-throttled or Pinokio benchmark.
+Fixture interception adds measurement overhead, especially to the development
+mode's many requests. Treat timing differences as exploratory local results,
+not a production latency guarantee; the transfer reduction is the clearer finding.
+
+### How the comparison works
+
+`npm run benchmark:container` runs an unreported warm-up for each server, then
+seven samples per mode in alternating order. Each sample launches a fresh
+Chrome process/profile, disables the HTTP cache, and uses a 1440 × 900 viewport
+at device pixel ratio 1. Servers are already running; their process startup
+and Vite's first dependency optimization are excluded.
+
+Page-level provider requests use unavailable-response fixtures, with a tiny OSM
+tile fixture. Application assets and Cesium geometry workers come from the real
+servers. This avoids changes in live feed populations or provider latency.
+The harness verifies that the launcher is visible and usable, opens Explore,
+rejects a blank globe, and measures five seconds of scripted globe motion.
+The fixture is not a map-quality or live-data test.
+
+Startup means the visible first-run launcher and initialized application API,
+not fully loaded real-world terrain. Transfer counts come from navigation and
+page Resource Timing after load and launcher readiness; they exclude APIs,
+external requests, and worker-internal imports. Byte totals include Chrome's
+estimated response-header sizes. JS heap is a browser estimate, not server RSS,
+container memory, or total device memory. Frame rates are useful only for the
+recorded renderer and this simple scene.
+
+Early harness trials stalled development ES-module workers under all-target
+request interception. Those incomplete trials are not benchmark results. The
+retained harness intercepts the page only and checks actual globe rendering;
+it fails rather than counting a blank scene as fast. Screenshots, full frame
+intervals, and failure diagnostics are written to ignored `output/` directories.
+
+### Repeat it locally
+
+This contributor check needs Node/npm and Chrome **outside** the container.
+Use a clean checkout with no `.env`, Pinokio environment file, or inherited
+provider keys. Build both modes from the same source and lockfile. On macOS or
+Linux, install the locked tools and start the development server:
+
+```sh
+npm ci --ignore-scripts
+npx --no-install puppeteer browsers install chrome
+env -i PATH="$PATH" HOST=127.0.0.1 GEV_CACHE_DIR=.gev-cache \
+  npm run dev -- --host 127.0.0.1 --port 4174 --strictPort
+```
+
+In another terminal, build and start a separate, keyless container. These names
+are only for this disposable benchmark; do not reuse an existing app's volume:
+
+```sh
+docker build -t gods-eye-view:benchmark .
+docker run --rm -d --name gev-benchmark \
+  --read-only --user 65532:65532 --cap-drop=ALL \
+  --security-opt=no-new-privileges --pids-limit=128 --memory=1g --cpus=2 \
+  --tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m \
+  --mount type=volume,source=gev-benchmark-cache,target=/app/.gev-cache \
+  -p 127.0.0.1:4175:8080 gods-eye-view:benchmark
+npm run benchmark:container -- \
+  --dev-url http://127.0.0.1:4174 \
+  --container-url http://127.0.0.1:4175 \
+  --runs 7 --output output/container-benchmark
+```
+
+Keep the machine otherwise idle; do not run builds or tests during measurement.
+`PUPPETEER_EXECUTABLE_PATH` can select an installed compatible Chrome. macOS uses
+Metal; Linux defaults to software rendering, so do not compare its FPS with
+hardware-rendered results. Podman users can substitute `podman` and build with
+`--format oci`.
+
+Afterward, stop the development server with Ctrl+C. Remove only this test
+container and its disposable cache:
+
+```sh
+docker stop gev-benchmark
+docker volume rm gev-benchmark-cache
+```
+
+Do not turn these local samples into a universal speed claim. A network-shaped
+test, warm-cache visits, live layers, Windows, NAS hardware, server resource
+profiling, and a separate Pinokio launch comparison would answer different
+questions. No Lighthouse or Core Web Vitals result is claimed here.

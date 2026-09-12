@@ -1,0 +1,365 @@
+{
+  "generatedAt": "2026-09-12T13:39:37.695Z",
+  "methodology": "Alternating order; fresh disposable Chrome process/profile with disabled HTTP cache per sample; already-running servers; offline provider fixtures; 1440x900 DPR 1; 5 seconds of globe motion without live layers. Asset requests/bytes use navigation and page resource timing after load and visible launcher, excluding API, external and worker-internal requests; transferSize includes browser-estimated headers. Not a cold-server-process, warm-cache, Pinokio launcher, live-provider, server-memory, or Core Web Vitals audit.",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M1 Pro",
+    "memoryBytes": 17179869184,
+    "node": "26.8.2"
+  },
+  "origins": {
+    "dev": "http://127.0.0.1:4174",
+    "container": "http://127.0.0.1:4175"
+  },
+  "runs": 7,
+  "passed": true,
+  "samples": [
+    {
+      "mode": "dev",
+      "run": 1,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2546.800000011921,
+      "ttfbMs": 14.5,
+      "loadMs": 658.7000000476837,
+      "assetRequests": 216,
+      "assetWireBytes": 35810533,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 86207720,
+      "rendered": {
+        "tiles": 12,
+        "colors": 298
+      },
+      "motion": {
+        "durationMs": 5015.699999988079,
+        "renders": 301,
+        "framesPerSecond": 60.01156369015599
+      }
+    },
+    {
+      "mode": "container",
+      "run": 1,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2317.800000011921,
+      "ttfbMs": 3.699999988079071,
+      "loadMs": 558.3999999761581,
+      "assetRequests": 24,
+      "assetWireBytes": 4711454,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 45632145,
+      "rendered": {
+        "tiles": 12,
+        "colors": 297
+      },
+      "motion": {
+        "durationMs": 5031.6,
+        "renders": 291,
+        "framesPerSecond": 57.83448604817553
+      }
+    },
+    {
+      "mode": "container",
+      "run": 2,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2316,
+      "ttfbMs": 7.399999976158142,
+      "loadMs": 574.5,
+      "assetRequests": 24,
+      "assetWireBytes": 4711454,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 43697486,
+      "rendered": {
+        "tiles": 12,
+        "colors": 317
+      },
+      "motion": {
+        "durationMs": 5015.000000011921,
+        "renders": 298,
+        "framesPerSecond": 59.42173479547191
+      }
+    },
+    {
+      "mode": "dev",
+      "run": 2,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2568.199999988079,
+      "ttfbMs": 12.100000023841858,
+      "loadMs": 681.6000000238419,
+      "assetRequests": 216,
+      "assetWireBytes": 35810533,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 76363802,
+      "rendered": {
+        "tiles": 12,
+        "colors": 314
+      },
+      "motion": {
+        "durationMs": 5007.5000000238415,
+        "renders": 294,
+        "framesPerSecond": 58.71193210156769
+      }
+    },
+    {
+      "mode": "dev",
+      "run": 3,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2544.199999988079,
+      "ttfbMs": 15.899999976158142,
+      "loadMs": 653.2999999523163,
+      "assetRequests": 216,
+      "assetWireBytes": 35810533,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 75916408,
+      "rendered": {
+        "tiles": 12,
+        "colors": 312
+      },
+      "motion": {
+        "durationMs": 5002.200000011921,
+        "renders": 291,
+        "framesPerSecond": 58.17440326242584
+      }
+    },
+    {
+      "mode": "container",
+      "run": 3,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2352.5,
+      "ttfbMs": 18.30000001192093,
+      "loadMs": 593.3999999761581,
+      "assetRequests": 24,
+      "assetWireBytes": 4711454,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 44053396,
+      "rendered": {
+        "tiles": 12,
+        "colors": 312
+      },
+      "motion": {
+        "durationMs": 5016.100000023842,
+        "renders": 290,
+        "framesPerSecond": 57.81383943673803
+      }
+    },
+    {
+      "mode": "container",
+      "run": 4,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2295.699999988079,
+      "ttfbMs": 2,
+      "loadMs": 567.6999999880791,
+      "assetRequests": 24,
+      "assetWireBytes": 4711454,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 41797729,
+      "rendered": {
+        "tiles": 12,
+        "colors": 313
+      },
+      "motion": {
+        "durationMs": 5048,
+        "renders": 290,
+        "framesPerSecond": 57.44849445324881
+      }
+    },
+    {
+      "mode": "dev",
+      "run": 4,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2684,
+      "ttfbMs": 28.899999976158142,
+      "loadMs": 879,
+      "assetRequests": 216,
+      "assetWireBytes": 35810533,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 75986244,
+      "rendered": {
+        "tiles": 12,
+        "colors": 320
+      },
+      "motion": {
+        "durationMs": 5013.200000011921,
+        "renders": 299,
+        "framesPerSecond": 59.642543684530644
+      }
+    },
+    {
+      "mode": "dev",
+      "run": 5,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2456,
+      "ttfbMs": 6.400000035762787,
+      "loadMs": 591,
+      "assetRequests": 216,
+      "assetWireBytes": 35810533,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 85410161,
+      "rendered": {
+        "tiles": 12,
+        "colors": 301
+      },
+      "motion": {
+        "durationMs": 5000.599999976158,
+        "renders": 294,
+        "framesPerSecond": 58.79294484689872
+      }
+    },
+    {
+      "mode": "container",
+      "run": 5,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2301.100000023842,
+      "ttfbMs": 5.899999976158142,
+      "loadMs": 577.7000000476837,
+      "assetRequests": 24,
+      "assetWireBytes": 4711454,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 47925450,
+      "rendered": {
+        "tiles": 12,
+        "colors": 306
+      },
+      "motion": {
+        "durationMs": 5004.899999952317,
+        "renders": 279,
+        "framesPerSecond": 55.74536953838401
+      }
+    },
+    {
+      "mode": "container",
+      "run": 6,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2435.7999999523163,
+      "ttfbMs": 6.400000035762787,
+      "loadMs": 713.3999999761581,
+      "assetRequests": 24,
+      "assetWireBytes": 4711454,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 43040402,
+      "rendered": {
+        "tiles": 12,
+        "colors": 313
+      },
+      "motion": {
+        "durationMs": 5010.4000000476835,
+        "renders": 297,
+        "framesPerSecond": 59.27670445417002
+      }
+    },
+    {
+      "mode": "dev",
+      "run": 6,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2534.800000011921,
+      "ttfbMs": 20.400000035762787,
+      "loadMs": 653.6000000238419,
+      "assetRequests": 216,
+      "assetWireBytes": 35810533,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 75916768,
+      "rendered": {
+        "tiles": 12,
+        "colors": 304
+      },
+      "motion": {
+        "durationMs": 5016.499999952316,
+        "renders": 295,
+        "framesPerSecond": 58.80594039724989
+      }
+    },
+    {
+      "mode": "dev",
+      "run": 7,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2504.300000011921,
+      "ttfbMs": 15.599999964237213,
+      "loadMs": 645.1999999880791,
+      "assetRequests": 216,
+      "assetWireBytes": 35810533,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 78701110,
+      "rendered": {
+        "tiles": 12,
+        "colors": 317
+      },
+      "motion": {
+        "durationMs": 5015.599999988079,
+        "renders": 294,
+        "framesPerSecond": 58.61711460257971
+      }
+    },
+    {
+      "mode": "container",
+      "run": 7,
+      "cache": "cold",
+      "browser": "Chrome/152.0.7977.75",
+      "appReadyMs": 2351,
+      "ttfbMs": 5.299999952316284,
+      "loadMs": 579,
+      "assetRequests": 24,
+      "assetWireBytes": 4711454,
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "jsHeapBytes": 43683585,
+      "rendered": {
+        "tiles": 12,
+        "colors": 301
+      },
+      "motion": {
+        "durationMs": 5016.3,
+        "renders": 297,
+        "framesPerSecond": 59.206985228156206
+      }
+    }
+  ],
+  "summary": {
+    "dev": {
+      "cold": {
+        "appReadyMs": 2544.199999988079,
+        "ttfbMs": 15.599999964237213,
+        "loadMs": 653.6000000238419,
+        "assetRequests": 216,
+        "assetWireBytes": 35810533,
+        "jsHeapBytes": 76363802
+      }
+    },
+    "container": {
+      "cold": {
+        "appReadyMs": 2317.800000011921,
+        "ttfbMs": 5.899999976158142,
+        "loadMs": 577.7000000476837,
+        "assetRequests": 24,
+        "assetWireBytes": 4711454,
+        "jsHeapBytes": 43697486
+      }
+    }
+  },
+  "motionMedianFps": {
+    "dev": 58.79294484689872,
+    "container": 57.83448604817553
+  },
+  "source": {
+    "applicationCommit": "9716fccf078d3f732029587882e9d61820c3ba0e",
+    "containerChanges": "Upstream-readiness worktree: precompressed assets and production serving, with no changes to the browser application source.",
+    "containerImageId": "sha256:d28d1d2b5afc90036a0138564f2e4b63c1c0cfd82ee6bcd0d22c945055675ea4",
+    "finalCleanupImageId": "sha256:eef91b44695f3564f6f09fee985a00bc0feb4b1bc9842117b8bf71fd27055fd3",
+    "finalCleanupComparison": "The final rebuild passed runtime, browser, and image-scan checks. Its 890 application files match the measured image byte-for-byte, excluding production-dependencies.spdx.json; the 22-package inventory also matches after removing documentNamespace and creationInfo.created.",
+    "platform": "linux/arm64",
+    "devServer": "Native macOS Node 26.8.2 / Vite 6.4.3",
+    "containerServer": "Podman Linux VM; Node 26.8.2; 2 CPU limit, 1 GiB RAM; nonroot, read-only, separate cache volume",
+    "retainedHarnessSha256": "79f9582ff59cced7f33627b11413da3d983b885a4486f1cb4b5877962c856065"
+  },
+  "retention": "All 14 measured samples are retained here. Unreported warmups, screenshots and full frame intervals remain local in output/container-benchmark-page-fixtures; earlier failed harness trials are not included as results. After measurement, the retained harness was formatted and failure diagnostics simplified; measurement behavior is unchanged."
+}

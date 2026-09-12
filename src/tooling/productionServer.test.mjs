@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import vm from 'node:vm';
 import { once } from 'node:events';
+import { brotliDecompressSync, gunzipSync } from 'node:zlib';
+import { compressAssets } from '../../scripts/compress-assets.mjs';
 import {
   browserConfiguration,
   configurationScript,
@@ -67,7 +69,7 @@ test('standalone HTTP serves only build assets, mounts APIs correctly, and sanit
   await mkdir(path.join(root, 'assets'));
   await writeFile(path.join(root, 'index.html'), '<html>fixture</html>');
   await writeFile(
-    path.join(root, 'assets', 'test-abc.js'),
+    path.join(root, 'assets', 'test-abcdefgh.js'),
     'console.log("fixture")',
   );
   await writeFile(path.join(root, '.env'), 'must-not-serve');
@@ -130,15 +132,15 @@ test('standalone HTTP serves only build assets, mounts APIs correctly, and sanit
   const document = await request('/');
   assert.equal(document.status, 200);
   assert.equal(document.headers['cache-control'], 'no-cache');
-  const asset = await request('/assets/test-abc.js');
+  const asset = await request('/assets/test-abcdefgh.js');
   assert.match(asset.headers['cache-control'], /immutable/);
   assert.equal(
-    (await request('/assets/test-abc.js', { method: 'HEAD' })).body,
+    (await request('/assets/test-abcdefgh.js', { method: 'HEAD' })).body,
     '',
   );
   assert.equal(
     (
-      await request('/assets/test-abc.js', {
+      await request('/assets/test-abcdefgh.js', {
         headers: { 'If-None-Match': asset.headers.etag },
       })
     ).status,
@@ -174,5 +176,63 @@ test('missing production assets fail startup', async () => {
       plugins: [],
     }),
     { code: 'ENOENT' },
+  );
+});
+
+test('build-time compression preserves assets and serves negotiated encodings with safe caches', async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'gev-compression-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, 'assets'));
+  await writeFile(path.join(root, 'index.html'), '<html>fixture</html>');
+  const source = '/* compressible browser asset */\n'.repeat(500);
+  const asset = path.join(root, 'assets', 'fixture-abcdefgh.js');
+  await writeFile(asset, source);
+  await writeFile(path.join(root, 'assets', 'unhashed.js'), 'small');
+  await writeFile(path.join(root, 'texture.png'), Buffer.from([1, 2, 3]));
+  await compressAssets(root);
+  assert.equal(await readFile(asset, 'utf8'), source);
+  assert.equal(gunzipSync(await readFile(`${asset}.gz`)).toString(), source);
+  assert.equal(
+    brotliDecompressSync(await readFile(`${asset}.br`)).toString(),
+    source,
+  );
+  await assert.rejects(readFile(path.join(root, 'texture.png.gz')), {
+    code: 'ENOENT',
+  });
+  await assert.rejects(readFile(path.join(root, 'assets', 'unhashed.js.br')), {
+    code: 'ENOENT',
+  });
+  const server = await createProductionServer({
+    staticRoot: root,
+    plugins: [],
+    env: {},
+  });
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  for (const encoding of ['br', 'gzip', 'identity']) {
+    const response = await fetch(`${base}/assets/fixture-abcdefgh.js`, {
+      headers: { 'Accept-Encoding': encoding },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get('content-encoding'),
+      encoding === 'identity' ? null : encoding,
+    );
+    assert.match(response.headers.get('vary'), /Accept-Encoding/i);
+    assert.match(response.headers.get('cache-control'), /immutable/);
+    assert.equal(await response.text(), source);
+  }
+  assert.equal(
+    (await fetch(`${base}/assets/unhashed.js`)).headers.get('cache-control'),
+    'no-cache',
+  );
+  assert.equal(
+    (await fetch(`${base}/runtime-config.js`)).headers.get('content-encoding'),
+    null,
   );
 });

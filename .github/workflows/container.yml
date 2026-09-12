@@ -21,6 +21,7 @@ jobs:
   # Keep job IDs stable; the names below are the labels shown in GitHub Actions.
   checks:
     name: Check application (Node.js ${{ matrix.node }})
+    needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -28,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['24.14.0', '26.8.2']
+        node: ['24.14.0', '${{ needs.prepare.outputs.node }}']
     env:
       PUPPETEER_SKIP_DOWNLOAD: '1'
       GEV_REQUIRE_ALLOCATION_GATE: ${{ matrix.node == '24.14.0' && '1' || '0' }}
@@ -62,6 +63,10 @@ jobs:
       created: ${{ steps.meta.outputs.created }}
       version: ${{ steps.meta.outputs.version }}
       publish: ${{ steps.meta.outputs.publish }}
+      node: ${{ steps.toolchain.outputs.node }}
+      runtime: ${{ steps.toolchain.outputs.runtime }}
+      buildkit: ${{ steps.toolchain.outputs.buildkit }}
+      sbom: ${{ steps.toolchain.outputs.sbom }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -87,6 +92,9 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
+      - name: Read dependency-managed runtime and build tools
+        id: toolchain
+        run: node scripts/container-toolchain.mjs >> "$GITHUB_OUTPUT"
 
   check-image:
     name: Test container without publishing (${{ matrix.runner == 'ubuntu-24.04-arm' && 'ARM64' || 'AMD64' }})
@@ -142,21 +150,20 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
-        with:
-          version: v0.37.1
-          driver-opts: image=moby/buildkit:buildx-stable-1@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
-          # Disable the action's security.insecure default. Buildx may still allow
-          # network.host inside its isolated builder; no build requests that grant.
-          buildkitd-flags: --debug
-      - name: Install signature verifier (Cosign)
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-        with:
-          cosign-release: v3.1.3
-      - name: Verify Google's signature on the pinned base image
+      - name: Install digest-pinned Buildx, Cosign, and Grype
+        run: node scripts/container-toolchain.mjs --install --scan-tools
+      - name: Start the pinned, isolated BuildKit builder
+        env:
+          BUILDKIT_IMAGE: ${{ needs.prepare.outputs.buildkit }}
         run: |
-          cosign verify gcr.io/distroless/nodejs26-debian13:nonroot@sha256:f7e3539249fa844f7019255d3ed1acb5faf626006607a602f8a24d59f0a97c6c \
+          docker buildx create --name gev --driver docker-container \
+            --driver-opt "image=$BUILDKIT_IMAGE" --buildkitd-flags=--debug --use
+          docker buildx inspect --bootstrap
+      - name: Verify Google's signature on the pinned base image
+        env:
+          RUNTIME_IMAGE: ${{ needs.prepare.outputs.runtime }}
+        run: |
+          cosign verify "$RUNTIME_IMAGE" \
             --certificate-oidc-issuer https://accounts.google.com \
             --certificate-identity keyless@distroless.iam.gserviceaccount.com
       - name: Sign in to GitHub Container Registry
@@ -175,7 +182,7 @@ jobs:
           outputs: type=image,push=true,oci-mediatypes=true
           tags: ${{ needs.prepare.outputs.image }}:build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
           provenance: mode=max
-          attests: type=sbom,generator=docker/buildkit-syft-scanner:stable-1@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
+          attests: type=sbom,generator=${{ needs.prepare.outputs.sbom }}
           build-args: |
             OCI_SOURCE=https://github.com/${{ github.repository }}
             OCI_REVISION=${{ github.sha }}
@@ -197,19 +204,11 @@ jobs:
           artifact-name: container-browser-release-amd64
       - name: Scan image and block fixable High/Critical findings
         id: scan
-        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
-        with:
-          image: registry:${{ needs.prepare.outputs.image }}@${{ steps.build.outputs.digest }}
-          grype-version: v0.118.0
-          severity-cutoff: high
-          # Report wont-fix, not-fixed, and unknown states without blocking.
-          # JSON retains these findings in ignoredMatches; this is not VEX.
-          only-fixed: true
-          fail-build: true
-          output-format: json
-          output-file: /tmp/gev-vulnerabilities.json
-          cache-db: false
-          config: .github/grype.yaml
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        # JSON retains unfixed findings in ignoredMatches; this is not VEX.
+        run: grype "registry:$IMAGE@$DIGEST" --config .github/grype.yaml --only-fixed --fail-on high --output json --file /tmp/gev-vulnerabilities.json
       - name: Summarize High/Critical findings by fix availability
         if: always() && steps.scan.outcome != 'skipped'
         run: |
@@ -266,18 +265,18 @@ jobs:
     outputs:
       digest: ${{ steps.index.outputs.digest }}
     steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Download tested image digests
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: digest-*
           merge-multiple: true
           path: digests
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
-        with:
-          version: v0.37.1
-          driver-opts: image=moby/buildkit:buildx-stable-1@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
-          buildkitd-flags: --debug
+      - name: Install digest-pinned Buildx
+        run: node scripts/container-toolchain.mjs --install
       - name: Sign in to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -336,14 +335,14 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install SLSA provenance verifier
         uses: slsa-framework/slsa-verifier/actions/installer@ea584f4502babc6f60d9bc799dbbb13c1caa9ee6 # v2.7.1
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
-        with:
-          version: v0.37.1
-          driver-opts: image=moby/buildkit:buildx-stable-1@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
-          buildkitd-flags: --debug
+      - name: Install digest-pinned Buildx
+        run: node scripts/container-toolchain.mjs --install
       - name: Sign in to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -358,6 +357,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence
+          node scripts/container-toolchain.mjs > evidence/toolchain.txt
           source_ref=(--source-branch "$GITHUB_REF_NAME")
           if [[ "$GITHUB_REF_TYPE" == tag ]]; then source_ref=(--source-tag "$GITHUB_REF_NAME"); fi
           slsa-verifier verify-image "$IMAGE@$DIGEST" \
@@ -411,58 +411,3 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 90
-
-  release:
-    name: Create GitHub release with container references
-    needs: [prepare, index, verify-and-promote]
-    if: needs.prepare.outputs.publish == 'true' && github.ref_type == 'tag'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - name: Download verified container evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: container-evidence-${{ github.sha }}
-          path: evidence
-      - name: Create release notes and image reference manifest
-        env:
-          IMAGE: ${{ needs.prepare.outputs.image }}
-          DIGEST: ${{ needs.index.outputs.digest }}
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          set -euo pipefail
-          jq -n \
-            --arg image "$IMAGE" \
-            --arg digest "$DIGEST" \
-            --arg version "$VERSION" \
-            --arg commit "$GITHUB_SHA" \
-            --arg amd64 "$(jq -r '.manifests[] | select(.platform.architecture == "amd64" and .platform.os == "linux") | .digest' evidence/index.json)" \
-            --arg arm64 "$(jq -r '.manifests[] | select(.platform.architecture == "arm64" and .platform.os == "linux") | .digest' evidence/index.json)" \
-            '{image:$image, version:$version, sourceCommit:$commit, indexDigest:$digest, references:{tag:($image+":"+$version), commitTag:($image+":sha-"+$commit), digest:($image+"@"+$digest), platforms:{"linux/amd64":($image+"@"+$amd64),"linux/arm64":($image+"@"+$arm64)}}}' \
-            > release.json
-          {
-            printf '%s\n' '## Container image' ''
-            printf '%s\n' 'This release publishes a multi-platform OCI image for Linux AMD64 and ARM64.' ''
-            printf '%s\n' '| Reference | Value |' '| --- | --- |'
-            printf '| Version tag | %s:%s |\n' "$IMAGE" "$VERSION"
-            printf '| Commit tag | %s:sha-%s |\n' "$IMAGE" "$GITHUB_SHA"
-            printf '| Multi-platform digest | %s@%s |\n' "$IMAGE" "$DIGEST"
-            printf '| Source commit | %s |\n' "$GITHUB_SHA"
-            printf '%s\n' '' 'Pull the exact release bytes with:' '' '    docker pull'
-            printf '    %s@%s\n' "$IMAGE" "$DIGEST"
-            printf '%s\n' '' 'The attached files include the verified SLSA provenance, runtime and' 'builder SBOMs, vulnerability reports, OCI index, and machine-readable' 'image references. The image was tested before promotion; see the' "repository's container documentation for verification commands and" 'runtime requirements.'
-          } > release-notes.md
-      - name: Publish GitHub release and attach verification evidence
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          set -euo pipefail
-          gh release create "$VERSION" \
-            --verify-tag \
-            --title "God's Eye View $VERSION" \
-            --notes-file release-notes.md \
-            release.json evidence/*.json evidence/*.txt

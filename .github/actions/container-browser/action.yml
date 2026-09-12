@@ -10,10 +10,14 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Read the Node version from the image builder
+      id: toolchain
+      shell: bash
+      run: node scripts/container-toolchain.mjs >> "$GITHUB_OUTPUT"
     - name: Set up Node.js for the browser test
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
-        node-version: 26.8.2
+        node-version: ${{ steps.toolchain.outputs.node }}
         package-manager-cache: false
     - name: Install locked browser-test dependencies on the runner
       shell: bash

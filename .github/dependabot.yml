@@ -6,10 +6,18 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
   - package-ecosystem: docker
-    directory: /
+    directories:
+      - /
+      - /.github/container-tools
     schedule:
       interval: weekly
+    ignore:
+      # A new Node major needs an intentional runtime/compatibility decision.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /.github/actions/container-browser
     schedule:
       interval: weekly

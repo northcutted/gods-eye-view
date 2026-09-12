@@ -1,18 +1,146 @@
 # 🧪 What we tested
 
-**The local container and hosted release pipeline passed.**
-Application tests, runtime safety checks, and a first-run browser check passed.
-The original scan found four
-unfixed High/Critical library issues. Under the current fixable-only policy,
-those are reported without blocking. The published image and GitHub-signed
-provenance were verified for the merge recorded below.
+**Local validation passed, and an earlier fork publication was verified.**
+The revised workflow still needs a fresh hosted run. Application tests, runtime
+safety checks, and a first-run browser check passed for the local image recorded
+below. The scan retained four unfixed High/Critical library findings; under the
+fixable-only policy, those are reported without blocking. This is a dated
+validation record, not a vulnerability-free guarantee or an independent security
+certification.
 
-This is the validation record prepared on 2026-09-11 (America/Chicago), with
+The canonical deployment target is `ghcr.io/bilawalsidhu/gods-eye-view`, with
+source identity `github.com/bilawalsidhu/gods-eye-view`. Fork links and image
+subjects below identify where historical tests actually ran; they are not
+deployment recommendations or upstream publication claims. Use the canonical
+examples in the [Docker guide](CONTAINERS.md) for deployment, once upstream
+has published a verified image.
+
+## Upstream PR preparation — September 12, 2026
+
+The follow-up images were built from `9716fccf078d3f732029587882e9d61820c3ba0e`
+plus the upstream-readiness changes, including precompressed assets. The
+benchmark used ARM64 image ID
+`sha256:d28d1d2b5afc90036a0138564f2e4b63c1c0cfd82ee6bcd0d22c945055675ea4`.
+The final cleanup rebuild is
+`sha256:eef91b44695f3564f6f09fee985a00bc0feb4b1bc9842117b8bf71fd27055fd3`.
+These are local image identities, **not** published multi-platform digests.
+All 890 application files matched byte-for-byte between the two images,
+excluding the generated npm SBOM. That inventory also matched after removing
+its generated document namespace and creation timestamp (22 package entries).
+The final rebuild passed the runtime, browser, and image-scan checks below.
+
+- Node 26.8.2 passed 2,967 tests with one existing skip. Node 24.20.0 passed
+  the ordinary suite and all 14 additional allocation tests.
+- The OCI build, hardened runtime checks, shutdown, and cache-persistence
+  tests passed. Brotli/gzip round-trip and HTTP negotiation tests passed,
+  including unchanged identity responses, cache headers, and no compression
+  of runtime configuration.
+- Chrome for Testing 152.0.7977.75 on macOS/Metal passed the image's first-run
+  smoke test: all four choices, Explore, visible attribution, 12 rendered
+  globe tiles, 303 sampled colors, no lost graphics context, no local asset
+  errors, and no conversation uploads.
+- Grype 0.118.0 scanned the exported OCI image using the release policy. The
+  refreshed database was built at `2026-09-12T06:27:25Z`. The scan passed with
+  zero actionable matches and 21 report-only matches, including the same four
+  unfixed High/Critical findings listed below. This was an ARM64 scan, not a
+  new AMD64 scan or a renewal of the historical VEX proposals.
+- A fresh scanner positive control against `pkg:npm/lodash@4.17.20` failed
+  with exit code 2 and two fixable High findings. That package was not added
+  to the project. Reporting unfixed issues still does not bypass fixable ones.
+- The dependency-managed Buildx 0.37.1, Cosign 3.1.3, and Grype 0.118.0 images
+  were pulled and their binaries checked on Linux ARM64. Workflow linting,
+  metadata parser tests, and installer cleanup tests passed. Formatting and
+  package-boundary checks passed too. The revised tool installation path still needs
+  its own hosted Actions run; local tests cannot establish hosted publication.
+
+The [container/development benchmark](PERFORMANCE.md#container-versus-npm-run-dev)
+records its own scope and repeatable procedure. Local reports and screenshots
+are generated under ignored `output/`; they are not all committed here.
+
+### Historical fork publication — not the canonical deployment
+
+The previous hosted pipeline **did** pass on the test fork at commit `9716fcc`:
+[historical fork run 34694764029](https://github.com/northcutted/gods-eye-view/actions/runs/34694764029).
+Its published index is
+`sha256:157d8afc9a895882eaa832c8a99003e8be7dd15317b609f4b221007d63abd76d`.
+That image was pulled anonymously and its SLSA provenance independently verified.
+Interactive Chrome checks exercised real map imagery, navigation to London,
+NVG, flights, earthquakes, satellites, contacts, and cockpit view. Search needed
+a Google key; AIS had no key; mapped installations and terrain were not fully
+validated. Paid-provider accounts, voice, and NAS deployments remain outside
+that check. These results establish a working fork publication, not an upstream
+package or a successful hosted run of the uncommitted changes above.
+
+### How the upstream-readiness review was done
+
+This was an AI-assisted implementation review and local validation, performed
+with Codex. It was not a repository-wide security audit. The source comparison
+used upstream `aacfa06a311f9eac2fe3cb37533ef08e43a3c7ac` and fork HEAD
+`9716fccf078d3f732029587882e9d61820c3ba0e`, plus the uncommitted container changes.
+The image identities above identify the tested builds more precisely than the
+HEAD commit alone.
+
+1. **Review the additions from an upstream maintainer's perspective.** Compare
+   the fork's deployment changes with upstream, then inspect the Dockerfile,
+   Compose example, standalone server, shared provider handlers, workflow, and
+   dependency manifests together. Restore upstream CODEOWNERS, remove stale
+   npm script permissions and fork-specific deployment defaults, and keep
+   GitHub Release/CD automation out of this PR. Preserve the existing
+   development and Pinokio paths rather than replacing their setup.
+2. **Follow each dependency to the place it is actually selected.** An action's
+   commit pin does not update a tool version passed through its inputs. Move
+   Buildx, BuildKit, Cosign, Grype, and the SBOM scanner into literal,
+   digest-pinned image references that Dependabot can read. Include nested
+   composite actions in its update paths. Derive the container workflow's
+   Node version and base-signature target from the root Dockerfile instead of
+   maintaining duplicate values. Node major upgrades remain intentional.
+3. **Exercise the runtime contract, not just the health endpoint.** Build an
+   OCI image and test non-root execution, absent shell/npm, read-only app files,
+   writable persistent cache, public-only browser configuration, disabled
+   credential-writing/conversation-log routes, and graceful shutdown. Then
+   open the actual image in Chrome and check startup, controls, attribution,
+   and rendered globe geometry. Unit tests separately cover compressed and
+   uncompressed responses, caching, and unchanged runtime configuration.
+4. **Check that safeguards can fail.** Parser tests reject missing, floating,
+   duplicate, or incompatible tool pins and exercise simulated dependency
+   updates. Installer tests use a mock Docker executor to check binary paths,
+   executable permissions, and cleanup after a failed copy; actual pinned tool
+   binaries were checked separately on Linux ARM64. The scanner's vulnerable
+   package control still fails on fixable High findings. Earlier browser
+   validation also deliberately withheld application JavaScript and failed
+   despite a healthy HTTP endpoint. These controls have different scopes and
+   do not substitute for a fresh hosted workflow run.
+5. **Measure the performance claim rather than assume it.** Use the same
+   browser application source and lockfile for development and the container,
+   isolate credentials and caches, alternate run order, and retain every
+   measured sample. Compare seven-run medians only after all rendering checks
+   pass. The [benchmark method](PERFORMANCE.md#container-versus-npm-run-dev)
+   explains fixture interception, excluded costs, failed harness trials, and
+   the difference between launcher readiness and fully loaded live terrain.
+6. **Keep conclusions tied to their evidence.** Scan the final image itself,
+   retain unfixed findings, and distinguish them from inactive VEX proposals.
+   Compare the final rebuild's application bytes and dependency inventory with
+   the benchmarked image. Record local ARM64 results separately from the older
+   hosted multi-platform publication; do not call the new workflow verified
+   merely because its predecessor passed.
+
+The measured improvement is in page delivery: 8.9% less time to the launcher
+and 86.8% fewer transferred page-asset bytes in this controlled comparison.
+The container's median frame rate was about 1 FPS lower, so there is no rendering
+speedup claim. The maintenance improvement is explicit update coverage and
+tested dependency selection, not proof that Dependabot has already opened or
+merged an update PR. Distroless reduces shipped tools; signed provenance helps
+verify build origin; scans report known vulnerabilities. None replaces the
+others, access controls, or timely operator-managed updates.
+
+## Original deployment and policy validation
+
+The following is the historical record prepared on 2026-09-11 (America/Chicago), with
 the follow-up VEX assessment, gate-policy checks, and browser testing on
 2026-09-12 UTC. It records what was tested at
 that time, not a promise about later images. The hosted run was
 `34670683699`, for commit `6457653e511d9edaf12bf13d0acf92ec28335039`.
-Its multi-platform index is
+Its historical test subject (fork registry, not a deployment example) is
 `ghcr.io/northcutted/gods-eye-view@sha256:969fcb52b1707d884bdf1aaa65df62a34323e2c9e39a9f0ba073b13bc40bd30a`.
 For setup and everyday commands,
 start with [Run the globe with Docker](CONTAINERS.md).
@@ -84,7 +212,8 @@ Testing 152.0.7977.75, selected by the locked Puppeteer package, on macOS/Metal:
 This is an offline startup/rendering check: external services return simulated
 unavailable responses, and map tiles use a tiny fixture. It does not validate
 live data, real map imagery, external fonts, microphone access, or performance.
-GitHub's AMD64/software-rendering run is configured but has not run locally.
+GitHub's AMD64/software-rendering check subsequently passed in the hosted fork
+pipeline; this local run itself was ARM64 only.
 The hardened runtime and cache-persistence checks also passed on the rebuilt
 ARM64 image; this follow-up did not regenerate the historical SBOM/VEX evidence
 or rescan the new image. A release needs fresh evidence for its own digest.
@@ -168,20 +297,22 @@ changes did not replace the underlying evidence.
 
 ## What still needs follow-up?
 
-- **Versioned release.** The verified `main` run published the `main` and
-  commit-SHA tags. A semver tag will additionally publish `latest` and create
-  a GitHub Release with the exact image references and evidence files attached.
-- **Keep evidence current.** Re-run the scan and refresh the VEX assessment
-  after every base or dependency update. The hosted run used the exact CI Node
-  24.14.0 and Node 26.8.2 checks.
-- **Enforce review rules.** The repository had no rulesets during this
-  validation. CODEOWNERS are supplied, but review, required-check, and
-  release-tag protections still need enforcement in GitHub.
-- **Check package visibility.** This package is currently public and anonymous
-  pulls succeeded. New packages may still need their visibility set to public.
-- **Check real-world use.** The browser smoke check covers offline first-run
-  startup and rendering, not paid/live provider accounts, real imagery, or a
-  full visual acceptance review. NAS-specific deployments still need testing.
+- **Run the revised workflow on the fork.** Its new dependency-managed tool
+  installation and both architecture builds need fresh hosted verification
+  before calling these exact changes release-tested.
+- **Versioned publication.** Main and commit tags have been exercised. A stable
+  semver tag also updates `latest`; prereleases do not. Application releases and
+  deployment automation remain a separate follow-up, with no GitHub Release
+  creation job in this PR.
+- **Keep release evidence current.** CI generates scans and build evidence for
+  every candidate. The inactive VEX assessment stays historical; reproduce and
+  review it for an exact release only if an exception is to be activated.
+- **Enforce review rules.** Check main-branch, required-check, and release-tag
+  protections in the publishing repository. CODEOWNERS alone does not enforce them.
+- **Check package visibility.** Anonymous fork pulls passed. A newly created
+  upstream package may still need its visibility set to public.
+- **Broader deployment testing.** Paid-provider accounts, voice/microphone,
+  different GPUs, and NAS-specific deployments still need testing.
 
 Re-run the image scan after every base/dependency update; this record is a dated
 snapshot, not a permanent assertion about either vulnerability status or SBOM

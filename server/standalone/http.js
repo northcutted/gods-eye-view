@@ -106,10 +106,12 @@ export async function createProductionServer({
     dev: false,
     dotfiles: false,
     etag: true,
+    gzip: true,
+    brotli: true,
     setHeaders(res, pathname) {
       res.setHeader(
         'Cache-Control',
-        /\/assets\//.test(pathname)
+        /\/assets\/[^/]+-[\w-]{8,}\.[\w.]+$/.test(pathname)
           ? 'public, max-age=31536000, immutable'
           : 'no-cache',
       );

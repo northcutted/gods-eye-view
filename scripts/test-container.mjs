@@ -19,9 +19,9 @@ assert.equal(
   inspected.Config.Labels['org.opencontainers.image.licenses'],
   'MIT',
 );
-assert.match(
-  inspected.Config.Labels['org.opencontainers.image.base.digest'],
-  /^sha256:[a-f0-9]{64}$/,
+assert.equal(
+  inspected.Config.Labels['org.opencontainers.image.base.name'],
+  'gcr.io/distroless/nodejs26-debian13:nonroot',
 );
 const volume = `gev-container-test-${randomUUID()}`;
 run('volume', 'create', volume);

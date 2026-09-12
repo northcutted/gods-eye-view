@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { build as buildBrowser } from 'vite';
 import { build as buildServer } from 'esbuild';
 import { createBrowserViteConfig } from '../build/vite.js';
+import { compressAssets } from './compress-assets.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const out = path.join(root, 'out');
@@ -50,6 +51,7 @@ for (const asset of [
 ]) {
   await access(path.join(out, 'dist/cesium', asset));
 }
+await compressAssets(path.join(out, 'dist'));
 
 const result = await buildServer({
   absWorkingDir: root,

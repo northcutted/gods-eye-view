@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.20@sha256:26147acbda4f14c5add9946e2fd2ed543fc402884fd75146bd342a7f6271dc1d
+# Use the frontend shipped with the pinned BuildKit, not another mutable tool.
 # The shipped JavaScript/assets are architecture-independent. Run compilers on
 # the builder CPU, so multi-platform local builds never emulate esbuild/Go.
 FROM --platform=$BUILDPLATFORM node:26.8.2-trixie-slim@sha256:f7bb8247fdb16250dbec7fd0e24f091c6f5f0a29d256f3aef5816a7a369166b2 AS build
@@ -14,7 +14,7 @@ RUN --network=none node scripts/build-container.mjs \
     && mkdir /runtime-cache
 
 FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:f7e3539249fa844f7019255d3ed1acb5faf626006607a602f8a24d59f0a97c6c AS runtime
-ARG OCI_SOURCE=https://github.com/northcutted/gods-eye-view
+ARG OCI_SOURCE=https://github.com/bilawalsidhu/gods-eye-view
 ARG OCI_REVISION=unknown
 ARG OCI_VERSION=dev
 ARG OCI_CREATED=1970-01-01T00:00:00Z
@@ -27,8 +27,9 @@ LABEL org.opencontainers.image.title="God's Eye View" \
       org.opencontainers.image.version="${OCI_VERSION}" \
       org.opencontainers.image.created="${OCI_CREATED}" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.base.name="gcr.io/distroless/nodejs26-debian13:nonroot" \
-      org.opencontainers.image.base.digest="sha256:f7e3539249fa844f7019255d3ed1acb5faf626006607a602f8a24d59f0a97c6c"
+      org.opencontainers.image.base.name="gcr.io/distroless/nodejs26-debian13:nonroot"
+# The base digest is recorded in provenance from FROM, not a duplicate label
+# that could become stale when Dependabot updates the base.
 WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

@@ -258,6 +258,9 @@
     }
   ],
   "inspectionSha256": "0989f8af5fe4a0d0dfae430f4d15e3f6c12481acd46bba382595334f5b52fe6b",
-  "canonicalArtifacts": "/private/var/folders/71/c1wqy1_x26s5tgyqvfv1mhcr0000gn/T/codex-security-scans/gods-eye-view/350896a_20260912T021053Z",
-  "rawWorkingEvidence": "/private/tmp/gev-vex-assessment"
+  "artifactAvailability": {
+    "repository": ["evidence.json", "runtime-trace.txt", "positive-trace.txt"],
+    "notIncluded": "Raw native inspection data, downloaded source archive, probe tooling, and per-CVE validation receipts were local assessment artifacts, not a portable bundle committed here.",
+    "activationRequirement": "Reproduce and retain the complete evidence for the exact release subjects before approving or activating any VEX exception."
+  }
 }

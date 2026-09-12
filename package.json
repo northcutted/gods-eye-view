@@ -45,6 +45,7 @@
     "test": "node scripts/run-unit-tests.mjs",
     "test:track": "node scripts/track-regression.mjs",
     "test:container:browser": "node scripts/test-container-browser.mjs",
+    "benchmark:container": "node scripts/benchmark-container.mjs",
     "qa:map-source-tray": "node scripts/qa-map-source-tray.mjs",
     "check:boundaries": "node scripts/check-package-boundaries.mjs"
   },
@@ -103,9 +104,5 @@
       "node": "./server/providers/gbfs.js"
     },
     "./sources/gbfs": "./src/data/gbfsSource.js"
-  },
-  "allowScripts": {
-    "esbuild@0.25.12": true,
-    "fsevents@2.3.3": true
   }
 }

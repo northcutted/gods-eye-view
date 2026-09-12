@@ -10,6 +10,32 @@ network to your own stack.
 
 **[Quick Start](#-quick-start) · [Keys](#-add-optional-keys) · [Your Stack](#-add-it-to-your-stack) · [Updates](#-update-or-roll-back) · [Under the Hood](#-under-the-hood)**
 
+## 🎯 Why a container?
+
+Pinokio makes desktop installation approachable, and `npm run dev` is the right
+tool when you are editing the app. This adds a third option: running a built
+application as a service on a Docker host, home server, or NAS.
+
+- **Build once, run those bytes.** The image includes the compiled app and server.
+  Starting it does not install npm packages or compile JavaScript. A digest lets
+  you deploy or roll back to the same image on another machine.
+- **Less software in production.** The distroless Node 26 runtime has no shell,
+  npm, or package manager. Build tools stay in the builder. The default deployment
+  runs as a non-root account and cannot rewrite its own application files.
+- **Efficient asset delivery.** Browser code is bundled and minified; large static
+  assets have Brotli/gzip copies prepared during the build. Hashed bundles can be
+  cached, while HTML and runtime configuration stay refreshable. There is no
+  development transform server or hot-reload connection in production.
+- **An inspectable supply chain.** Signed build records link the image to its
+  source and workflow. Dependency inventories and vulnerability reports help
+  maintainers identify what needs updating before promoting an image.
+
+These are deployment benefits, not a different globe engine. The browser still
+does the rendering, and the same provider handlers serve live data. Distroless
+does not make JavaScript faster or eliminate vulnerabilities. Compression adds
+some build time and image storage in exchange for less network transfer.
+See the [benchmark and its limits](PERFORMANCE.md#container-versus-npm-run-dev).
+
 ## ⚡ Quick Start
 
 You need a checkout of this repository and Docker with **Compose 2.24 or newer**.
@@ -25,12 +51,14 @@ Open **http://localhost:8080**. The first build downloads its dependencies;
 later builds can reuse local build layers. The app starts with its keyless
 providers, just like the terminal setup.
 
-**Release status:** the hosted `main` image has passed its build, runtime,
-browser, scan, and SLSA provenance checks. Pull it by the verified digest shown
-in [the validation record](CONTAINER-VALIDATION.md). Version-tagged releases
-also include a GitHub Release with copyable image references and evidence files.
-Release checks block High/Critical findings when a fix is available; unfixed
-findings are reported without blocking.
+**Canonical image:** `ghcr.io/bilawalsidhu/gods-eye-view`, published from
+[`bilawalsidhu/gods-eye-view`](https://github.com/bilawalsidhu/gods-eye-view).
+All published-image examples in this guide use that upstream identity. After
+upstream publication, copy a verified digest from its successful container
+workflow in [Actions](https://github.com/bilawalsidhu/gods-eye-view/actions).
+Until then, use the local build above. The dated
+[validation record](CONTAINER-VALIDATION.md) includes historical fork tests;
+those are not evidence that a canonical upstream image has been published.
 
 ### The commands you'll use most
 
@@ -184,7 +212,7 @@ transactional budget across replicas, even if several instances share files.
 ### Running on a NAS
 
 Use the same image and safety settings on a Synology or another Linux NAS.
-Once a verified release is available, pulling it is usually more practical
+When a verified image is available, pulling it is usually more practical
 than compiling the app on the NAS. Import the Compose project into your NAS's
 container manager, set `GEV_IMAGE` to the verified digest, and remove `build`.
 Keep the default entrypoint; you do not need a terminal or npm inside the image.
@@ -225,10 +253,10 @@ identifies the same image bytes. Set this in your private `.env`, replacing
 the placeholder with the verified release digest:
 
 ```dotenv
-GEV_IMAGE=ghcr.io/northcutted/gods-eye-view@sha256:REPLACE_WITH_VERIFIED_DIGEST
+GEV_IMAGE=ghcr.io/bilawalsidhu/gods-eye-view@sha256:REPLACE_WITH_VERIFIED_DIGEST
 ```
 
-Then:
+Use the digest from a verified `bilawalsidhu/gods-eye-view` publication. Then:
 
 ```sh
 docker compose pull app
@@ -272,6 +300,13 @@ without a shell, npm, or package manager. Build tools live in a separate build
 stage and are not copied into the running image. The server starts directly
 with Node; it does not install dependencies or rebuild itself at startup.
 
+Fewer installed tools means fewer unnecessary components to patch and fewer
+ready-made utilities available to an attacker. It also means there is no
+`docker exec ... sh` troubleshooting session: use process logs and the Node
+health check. Node and its libraries still need updates, and a compromised Node
+process can still access anything its permissions and network allow.
+See [the distroless project's rationale](https://github.com/GoogleContainerTools/distroless#why-should-i-use-distroless-images).
+
 Compose runs it as a non-root user, keeps application files read-only, removes
 extra Linux privileges, and limits server memory, CPU, and process counts.
 Only the persistent cache and a small disposable `/tmp` are writable. The app
@@ -289,10 +324,14 @@ HTTP `/healthz` for their probes.
 | **SLSA Build L3** | Requirements for build isolation and trustworthy build records. It does not mean an app is free of vulnerabilities.                         |
 | **VEX**           | An evidence-backed explanation of whether a particular vulnerability affects a particular product. It is not a general-purpose ignore list. |
 
-The [workflow](../.github/workflows/container.yml) is designed to produce
-SLSA Build L3 provenance. **That claim still needs a successful hosted build
-and independent verification.** Local builds do not get a GitHub-signed
-attestation merely because they use the same Dockerfile.
+The [workflow](../.github/workflows/container.yml) uses the SLSA project's
+isolated container provenance generator for Build L3. A hosted fork build and
+independent verification have passed. This helps a consumer detect an image
+that did not come from the expected repository, commit, or workflow. It is not
+a code audit, a vulnerability-free guarantee, or independent certification of
+every repository control. The builder, signer, and GitHub platform remain trust
+assumptions; maintainers must protect publishing branches and tags.
+Local builds do not acquire GitHub-signed provenance by using the same Dockerfile.
 
 ### Reading the GitHub Actions checks
 
@@ -311,7 +350,7 @@ branch (`main`) and supported version-tag pushes take the release path.
 | Job in Actions                               | What it does                                                                                                                                               |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Check application**                        | Runs formatting, package import-boundary checks, and unit tests on each listed Node version.                                                               |
-| **Choose build-only or release**             | Sets the image name and version, and decides which path this run can take. Runs alongside the application checks.                                          |
+| **Choose build-only or release**             | Reads the dependency pins, sets the image name and version, and decides which path this run can take. Application checks follow this job.                  |
 | **Test container without publishing**        | Builds and tests an image on AMD64 and ARM64, without uploading it to the registry. This is the build-only path.                                           |
 | **Build, test, and scan image**              | Builds each architecture, uploads a temporary staging image with its dependency inventory and build records, then tests and scans that exact image.        |
 | **Assemble multi-platform image**            | Joins the tested AMD64 and ARM64 images under one reference so Docker can select the right architecture.                                                   |
@@ -375,8 +414,9 @@ and diagnostic reports for 14 days, including failures after the test starts.
 <details>
 <summary>Build and signing details — for maintainers and security reviewers</summary>
 
-The Dockerfile pins the Node builder, distroless runtime, and Dockerfile frontend
-by digest. Release builds verify Google's distroless signature. Dependencies
+The Dockerfile pins the Node builder and distroless runtime by digest. The
+frontend comes from the pinned BuildKit image. Release builds verify Google's
+signature on the exact base read from that Dockerfile. Dependencies
 come from the committed npm lockfile with installation scripts disabled.
 The compilation step runs without network access, and `.dockerignore` excludes
 local credentials and generated files from the build input.
@@ -414,9 +454,10 @@ and GitHub's runner isolation are explicit trust assumptions. See the
 and [SLSA requirements](https://slsa.dev/spec/v1.2/build-requirements).
 
 Main builds use `main` and `sha-COMMIT`. Version tags such as `v0.1.1` also
-publish that version; stable releases update `latest`, prereleases do not and
-create a GitHub Release containing `release.json`, SBOMs, scan reports, and
-provenance evidence. The Actions summary prints the full multi-platform digest
+publish that version; stable releases update `latest`, prereleases do not.
+This workflow does not create GitHub Releases or choose the application's
+release version. Coordinating application releases and deployments is separate.
+The Actions summary prints copyable pull commands, the full multi-platform digest
 and the separate AMD64/ARM64 manifest digests.
 Weekly main builds exercise the pipeline but do not update pinned dependencies.
 Temporary `build-RUN-ATTEMPT-ARCH` staging tags can remain after a failed check:
@@ -448,15 +489,16 @@ trying the local build. Install the official `slsa-verifier` (v2.7.1 or newer)
 and Docker Buildx, then replace the digest and version below with your release:
 
 ```sh
-IMAGE=ghcr.io/northcutted/gods-eye-view@sha256:REPLACE_WITH_VERIFIED_DIGEST
+IMAGE=ghcr.io/bilawalsidhu/gods-eye-view@sha256:REPLACE_WITH_VERIFIED_DIGEST
 slsa-verifier verify-image "$IMAGE" \
-  --source-uri github.com/northcutted/gods-eye-view \
+  --source-uri github.com/bilawalsidhu/gods-eye-view \
   --source-tag v0.1.1 --print-provenance
 docker buildx imagetools inspect "$IMAGE" --format '{{json .SBOM}}'
 docker buildx imagetools inspect "$IMAGE" --format '{{json .Provenance}}'
 ```
 
-For a main build, use `--source-branch main` instead of `--source-tag`. Check
+Use the actual upstream digest and version tag. For a main build, use
+`--source-branch main` instead of `--source-tag`. Check
 the expected commit in `invocation.configSource.digest.sha1` and the expected
 caller `.github/workflows/container.yml` too; the repository name alone does
 not tell you that you have the intended release.
@@ -470,6 +512,14 @@ SBOMs, and Sigstore objects together. A single-platform export or ordinary
 <details>
 <summary>Publishing your own fork and maintaining the pipeline</summary>
 
+Canonical publication runs in `bilawalsidhu/gods-eye-view` and targets
+`ghcr.io/bilawalsidhu/gods-eye-view`. The workflow derives its image name and
+source identity from the repository running it, so a fork publishes only to
+its own namespace. Fork maintainers testing their own images must use that
+fork's image address and matching `--source-uri`; ordinary upstream deployments
+use the canonical references above. Historical fork digests must not be
+substituted into the upstream verification example.
+
 Standard GitHub-hosted runners are free for public repositories. This workflow
 uses those runners, the repository's short-lived `GITHUB_TOKEN` for GHCR, and
 keyless signing rather than a stored signing key or personal access token.
@@ -481,13 +531,31 @@ anonymous pulls work.
 
 Before treating published tags as approved releases, enforce CODEOWNERS
 review and passing checks on main, prevent force pushes, and restrict changes
-to `v*` release tags. No repository rulesets were present during the initial
-validation; adding workflow files does not enable those protections.
+to `v*` release tags. Check those settings in the publishing repository;
+adding workflow files does not enable those protections.
 
-Dependabot proposes npm, Docker, and action updates weekly. Also review the
-workflow's explicit BuildKit/scanner image digests and Buildx, Cosign, and Grype
-versions; updating an action does not automatically update all its inputs.
-Recheck Node 26 and distroless support as part of normal maintenance.
+Dependabot opens update PRs weekly; it does not merge them or update running
+containers. Its coverage includes:
+
+- npm dependencies and the lockfile, including browser/build test tools.
+- The Node builder and distroless runtime in the root `Dockerfile`.
+- Buildx, BuildKit, Cosign, Grype, and the SBOM scanner in
+  `.github/container-tools/Dockerfile`. This small file is a dependency manifest,
+  not an extra application image. `scripts/container-toolchain.mjs` reads its
+  digest pins and installs the tools only on disposable Actions runners.
+- Actions and the reusable SLSA workflow, including actions nested in the local
+  browser-test composite action.
+
+The container workflow's Node 26 version and base-signature target follow the root Dockerfile,
+so an update cannot leave a second hard-coded copy behind. The Dockerfile
+frontend comes from the pinned BuildKit image. Node major upgrades are a
+deliberate maintainer decision: keep builder and distroless runtime aligned,
+then update the contract tests. Recheck Node 26's support lifecycle too.
+
+Review update PRs and their checks before merging. Weekly main builds rescan
+the pinned inputs against fresh vulnerability data; they do not silently
+upgrade packages. Newly published images still need an operator-controlled
+deployment. Never delete registry attestations merely to tidy the package list.
 
 Contributors with Node installed can test a locally built image with:
 

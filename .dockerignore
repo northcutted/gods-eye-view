@@ -18,6 +18,7 @@
 !config/**
 !scripts/
 !scripts/build-container.mjs
+!scripts/compress-assets.mjs
 !scripts/google-server-key.mjs
 !scripts/pinokio-environment.mjs
 # Defense in depth for future additions under an allowed directory.

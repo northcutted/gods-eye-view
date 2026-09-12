@@ -258,7 +258,9 @@ separately. No VEX document is passed to the current workflow.
 The compact [evidence record](security/container-vex/evidence.json),
 [ordinary native trace](security/container-vex/runtime-trace.txt), and
 [positive-control trace](security/container-vex/positive-trace.txt) are retained
-in the repository. Raw inspection data, source archive, tooling, and canonical
-per-CVE validation receipts are retained in the local assessment bundle noted
-in the evidence record. Logs contain only controlled test data, not provider
+in the repository. Raw inspection data, source archive, probe tooling, and
+per-CVE validation receipts were local assessment artifacts and are not included
+in this repository. The retained record is not a complete reproducibility bundle;
+repeat the assessment and retain that bundle before activating an exception.
+Logs contain only controlled test data, not provider
 credentials. See also the [container validation record](CONTAINER-VALIDATION.md).
