@@ -22,7 +22,8 @@ of current runtime behavior, see [`docs/CURRENT-STATE.md`](docs/CURRENT-STATE.md
 - AMD64 and ARM64 image builds with dependency inventories, signed build
   provenance, and verification before release tags are published. High/Critical
   findings block release when a fix is available; unfixed findings stay in the
-  reports. The hosted release flow still needs end-to-end verification.
+  reports. Verified version tags also publish a GitHub Release with image
+  references and the matching evidence files.
 - A first-run browser smoke test against the built container, plus Docker/NAS
   setup notes informed by SM-26's Docker install work (#208).
 - Split aircraft and vessel server providers into focused modules for source

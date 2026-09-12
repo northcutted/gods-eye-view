@@ -1,16 +1,20 @@
 # 🧪 What we tested
 
-**The local container builds and runs. Hosted release verification is still pending.**
+**The local container and hosted release pipeline passed.**
 Application tests, runtime safety checks, and a first-run browser check passed.
 The original scan found four
 unfixed High/Critical library issues. Under the current fixable-only policy,
-those are reported without blocking; no published image or GitHub-signed build
-has been verified.
+those are reported without blocking. The published image and GitHub-signed
+provenance were verified for the merge recorded below.
 
 This is the validation record prepared on 2026-09-11 (America/Chicago), with
 the follow-up VEX assessment, gate-policy checks, and browser testing on
 2026-09-12 UTC. It records what was tested at
-that time, not a promise about later images. For setup and everyday commands,
+that time, not a promise about later images. The hosted run was
+`34670683699`, for commit `6457653e511d9edaf12bf13d0acf92ec28335039`.
+Its multi-platform index is
+`ghcr.io/northcutted/gods-eye-view@sha256:969fcb52b1707d884bdf1aaa65df62a34323e2c9e39a9f0ba073b13bc40bd30a`.
+For setup and everyday commands,
 start with [Run the globe with Docker](CONTAINERS.md).
 
 ## What works locally?
@@ -147,7 +151,8 @@ compare policy behavior without changing the underlying vulnerability data.
 
 The explicit YAML config also replaces `/dev/null`, which this Grype version
 rejects as an unsupported config file. No package or advisory ignore rules were
-added. The hosted Actions run is still pending.
+added. The hosted Actions run passed with zero actionable findings. Its complete
+scan reports are retained as workflow artifacts.
 
 ## Did we check the Compose examples?
 
@@ -161,20 +166,19 @@ These were configuration checks, not a deployment of a proxy or a migration
 of live data. The retained VEX trace hashes also matched; the documentation
 changes did not replace the underlying evidence.
 
-## What still needs a real release run?
+## What still needs follow-up?
 
-- **Build and verify on GitHub.** No Git commit, push, release, registry
-  publication, or GitHub signing run was performed. Validate the hosted
-  workflow and verify its published digest with
-  `slsa-verifier` before claiming a released Build L3 artifact.
-- **Run the exact CI versions.** GitHub CI pins Node 24.14.0 for the allocation
-  baseline; local Node 24 checks used the installed 24.20.0. The exact hosted
-  baseline still needs its CI run.
+- **Versioned release.** The verified `main` run published the `main` and
+  commit-SHA tags. A semver tag will additionally publish `latest` and create
+  a GitHub Release with the exact image references and evidence files attached.
+- **Keep evidence current.** Re-run the scan and refresh the VEX assessment
+  after every base or dependency update. The hosted run used the exact CI Node
+  24.14.0 and Node 26.8.2 checks.
 - **Enforce review rules.** The repository had no rulesets during this
   validation. CODEOWNERS are supplied, but review, required-check, and
   release-tag protections still need enforcement in GitHub.
-- **Check download access.** A newly created GHCR package may need its
-  visibility set to public before anonymous users can pull it.
+- **Check package visibility.** This package is currently public and anonymous
+  pulls succeeded. New packages may still need their visibility set to public.
 - **Check real-world use.** The browser smoke check covers offline first-run
   startup and rendering, not paid/live provider accounts, real imagery, or a
   full visual acceptance review. NAS-specific deployments still need testing.

@@ -301,6 +301,7 @@ jobs:
           staging="$IMAGE:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           docker buildx imagetools create --tag "$staging" \
             --annotation "index:org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --annotation 'index:org.opencontainers.image.description=Real-time Earth intelligence console with a hardened distroless Node.js runtime' \
             --annotation "index:org.opencontainers.image.revision=$GITHUB_SHA" \
             --annotation "index:org.opencontainers.image.version=$VERSION" \
             --annotation "index:org.opencontainers.image.created=$CREATED" \
@@ -384,7 +385,25 @@ jobs:
             actual=$(docker buildx imagetools inspect "$IMAGE:$tag" --format '{{json .Manifest}}' | jq -r .digest)
             [[ "$actual" == "$DIGEST" ]]
           done
-          printf '%s@%s\n' "$IMAGE" "$DIGEST" | tee evidence/image.txt >> "$GITHUB_STEP_SUMMARY"
+          printf '%s@%s\n' "$IMAGE" "$DIGEST" > evidence/image.txt
+          amd64=$(jq -r '.manifests[] | select(.platform.architecture == "amd64" and .platform.os == "linux") | .digest' evidence/index.json)
+          arm64=$(jq -r '.manifests[] | select(.platform.architecture == "arm64" and .platform.os == "linux") | .digest' evidence/index.json)
+          {
+            echo '### Published container'
+            echo
+            echo "- Image digest (multi-platform index): \`$IMAGE@$DIGEST\`"
+            echo "- Source commit: \`$GITHUB_SHA\`"
+            echo "- Published tags: \`${tags[*]}\`"
+            echo "- Pull by tag: \`docker pull $IMAGE:${tags[0]}\`"
+            echo "- Pull by digest: \`docker pull $IMAGE@$DIGEST\`"
+            echo
+            echo '| Platform | Manifest digest |'
+            echo '| --- | --- |'
+            echo "| linux/amd64 | \`$IMAGE@$amd64\` |"
+            echo "| linux/arm64 | \`$IMAGE@$arm64\` |"
+            echo
+            echo "Evidence: [workflow artifacts](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) · [package](https://github.com/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${GITHUB_REPOSITORY#*/})"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload verified build records and released image reference
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -392,3 +411,58 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 90
+
+  release:
+    name: Create GitHub release with container references
+    needs: [prepare, index, verify-and-promote]
+    if: needs.prepare.outputs.publish == 'true' && github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download verified container evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: container-evidence-${{ github.sha }}
+          path: evidence
+      - name: Create release notes and image reference manifest
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          DIGEST: ${{ needs.index.outputs.digest }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg image "$IMAGE" \
+            --arg digest "$DIGEST" \
+            --arg version "$VERSION" \
+            --arg commit "$GITHUB_SHA" \
+            --arg amd64 "$(jq -r '.manifests[] | select(.platform.architecture == "amd64" and .platform.os == "linux") | .digest' evidence/index.json)" \
+            --arg arm64 "$(jq -r '.manifests[] | select(.platform.architecture == "arm64" and .platform.os == "linux") | .digest' evidence/index.json)" \
+            '{image:$image, version:$version, sourceCommit:$commit, indexDigest:$digest, references:{tag:($image+":"+$version), commitTag:($image+":sha-"+$commit), digest:($image+"@"+$digest), platforms:{"linux/amd64":($image+"@"+$amd64),"linux/arm64":($image+"@"+$arm64)}}}' \
+            > release.json
+          {
+            printf '%s\n' '## Container image' ''
+            printf '%s\n' 'This release publishes a multi-platform OCI image for Linux AMD64 and ARM64.' ''
+            printf '%s\n' '| Reference | Value |' '| --- | --- |'
+            printf '| Version tag | %s:%s |\n' "$IMAGE" "$VERSION"
+            printf '| Commit tag | %s:sha-%s |\n' "$IMAGE" "$GITHUB_SHA"
+            printf '| Multi-platform digest | %s@%s |\n' "$IMAGE" "$DIGEST"
+            printf '| Source commit | %s |\n' "$GITHUB_SHA"
+            printf '%s\n' '' 'Pull the exact release bytes with:' '' '    docker pull'
+            printf '    %s@%s\n' "$IMAGE" "$DIGEST"
+            printf '%s\n' '' 'The attached files include the verified SLSA provenance, runtime and' 'builder SBOMs, vulnerability reports, OCI index, and machine-readable' 'image references. The image was tested before promotion; see the' "repository's container documentation for verification commands and" 'runtime requirements.'
+          } > release-notes.md
+      - name: Publish GitHub release and attach verification evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "$VERSION" \
+            --verify-tag \
+            --title "God's Eye View $VERSION" \
+            --notes-file release-notes.md \
+            release.json evidence/*.json evidence/*.txt

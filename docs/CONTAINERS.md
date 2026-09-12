@@ -25,11 +25,12 @@ Open **http://localhost:8080**. The first build downloads its dependencies;
 later builds can reuse local build layers. The app starts with its keyless
 providers, just like the terminal setup.
 
-**Release status:** this guide currently starts by building your checkout.
-The first hosted image release has not been verified yet. Release checks block
-High/Critical findings when a fix is available; unfixed findings are reported
-without blocking. Local builds are available for testing, not as signed
-releases. See [what we tested](CONTAINER-VALIDATION.md).
+**Release status:** the hosted `main` image has passed its build, runtime,
+browser, scan, and SLSA provenance checks. Pull it by the verified digest shown
+in [the validation record](CONTAINER-VALIDATION.md). Version-tagged releases
+also include a GitHub Release with copyable image references and evidence files.
+Release checks block High/Critical findings when a fix is available; unfixed
+findings are reported without blocking.
 
 ### The commands you'll use most
 
@@ -412,8 +413,11 @@ and GitHub's runner isolation are explicit trust assumptions. See the
 [official container integration](https://github.com/slsa-framework/slsa-github-generator/tree/v2.1.0/internal/builders/container)
 and [SLSA requirements](https://slsa.dev/spec/v1.2/build-requirements).
 
-Main releases use `main` and `sha-COMMIT`. Version tags such as `v0.1.1` also
-publish that version; stable releases update `latest`, prereleases do not.
+Main builds use `main` and `sha-COMMIT`. Version tags such as `v0.1.1` also
+publish that version; stable releases update `latest`, prereleases do not and
+create a GitHub Release containing `release.json`, SBOMs, scan reports, and
+provenance evidence. The Actions summary prints the full multi-platform digest
+and the separate AMD64/ARM64 manifest digests.
 Weekly main builds exercise the pipeline but do not update pinned dependencies.
 Temporary `build-RUN-ATTEMPT-ARCH` staging tags can remain after a failed check:
 they are not approved releases.
