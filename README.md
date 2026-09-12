@@ -146,18 +146,25 @@ reload for contributors. See [why this deployment exists](docs/CONTAINERS.md#-wh
 and the [measured comparison](docs/PERFORMANCE.md#container-versus-npm-run-dev).
 
 No local Node or npm install needed. From a checkout of this repository, with
-Docker and **Compose 2.24 or newer**:
+Docker and **Compose 2.24 or newer**, add this to your `.env` beside
+`compose.yaml` (keep any settings already there):
+
+```dotenv
+GEV_IMAGE=ghcr.io/bilawalsidhu/gods-eye-view:latest
+```
 
 ```bash
-docker compose up --build -d
+docker compose pull app
+docker compose up -d --no-build app
 ```
 
 Open **http://localhost:8080**. It starts without API keys and keeps its cache
 across container replacement. Direct access stays on the Docker host by default.
 
-The canonical image address is `ghcr.io/bilawalsidhu/gods-eye-view`.
-Use a verified digest from `bilawalsidhu/gods-eye-view` after upstream publication;
-until then, the local build above is the starting point.
+`latest` is the easy default and receives verified image updates. Run the same
+two commands to update; an already-running container does not update itself.
+These commands use the upstream image once publishing is enabled there. Until
+then, use the [local build instructions](docs/CONTAINERS.md#build-from-your-checkout).
 
 **Keys work differently here:** put optional keys in a private `.env` beside
 `compose.yaml`, then run `docker compose up -d --force-recreate app`.

@@ -1,7 +1,8 @@
 # 🧪 What we tested
 
-**Local validation passed, and an earlier fork publication was verified.**
-The revised workflow still needs a fresh hosted run. Application tests, runtime
+**Local validation and the updated fork publication passed.** The dependency-managed
+workflow passed at `58a8c9a`; the subsequent `latest` and tag-only draft-release
+changes described below still need their first hosted run. Application tests, runtime
 safety checks, and a first-run browser check passed for the local image recorded
 below. The scan retained four unfixed High/Critical library findings; under the
 fixable-only policy, those are reported without blocking. This is a dated
@@ -14,6 +15,68 @@ subjects below identify where historical tests actually ran; they are not
 deployment recommendations or upstream publication claims. Use the canonical
 examples in the [Docker guide](CONTAINERS.md) for deployment, once upstream
 has published a verified image.
+
+## Hosted follow-up and publishing usability — September 12, 2026
+
+[Fork run 34697901577](https://github.com/northcutted/gods-eye-view/actions/runs/34697901577)
+completed successfully for commit
+`58a8c9adca7b8e23589b046e50128b0b9ad21338`. Its historical test subject is
+`ghcr.io/northcutted/gods-eye-view@sha256:c1c05edae28604a4c0cbf4b5a9d0db1393c9c9a22c99e585c989f5f5d985bd88`.
+This confirms the dependency-managed tool installation path that was pending
+in the earlier local review. It does not establish upstream publication.
+
+- Application checks passed on Node 24.14.0 and 26.8.2.
+- Both native architecture jobs passed base-signature verification, image
+  builds, hardened runtime checks, and the vulnerability gate. The AMD64
+  first-run browser check passed; ARM64 browser testing is not in hosted CI.
+- Each architecture report contains zero actionable matches and 21 report-only
+  findings, including four unfixed High/Critical findings.
+- OCI index assembly, isolated SLSA signing, final provenance verification,
+  SBOM extraction, and image tag promotion passed. The downloaded index has
+  the expected source, revision, description, version, license, and creation
+  annotations. Both scan artifacts and the combined evidence artifact exist.
+
+This follow-up inspected job/step conclusions and downloaded the evidence and
+scan artifacts. It did not repeat the earlier live-browser deployment test or
+independent local provenance verification for this newer image.
+
+### Changes made after that hosted run
+
+Main builds now promote `latest` through the same verification gate, and the
+README uses that tag as its simple published-image setup. Version-tag builds
+create a draft GitHub Release after successful image publication, using the
+Git tag verbatim as the release version, image version, and container tag.
+There is no manual version input or automatic Git tag creation. The draft
+includes editable highlights, generated change notes,
+container identities, both architecture scans and SBOMs, provenance, and
+verification instructions. Branch pushes and manual runs on main do not create
+GitHub Releases.
+
+The publication helper uses Node built-ins and the runner's GitHub CLI; it adds
+no npm dependency or separately downloaded tool. Tests cover default-branch,
+version, and prerelease tag policy; branch and malformed tag rejection; distinct
+Git/image identities; existing-tag and tag-to-commit checks; pagination and API errors; missing
+evidence; and resuming interrupted draft uploads without replacing author notes
+or existing assets. The retry test increments the workflow attempt as GitHub
+does, while preserving the original build's identity.
+
+Local validation commands are `npm run format:check`, `npm run check:boundaries`,
+`actionlint .github/workflows/container.yml`, and `TMPDIR=/private/tmp npm test`.
+Compose configuration was checked with both its local-image default and the
+canonical `latest` override. Read-only calls exercised the actual GitHub release
+and absent-tag lookup commands; draft creation and uploads were simulated, not
+performed against a real repository. The first ordinary test invocation hit
+the existing macOS `/var` versus `/private/var` temporary-directory assertion;
+the canonical `TMPDIR` avoids that environment mismatch without changing app code.
+
+The final local suites passed **2,977 tests with one existing skip** on each of
+Node 26.8.2 and 24.20.0, including ten publication tests for the tag-only flow.
+Both stable and prerelease draft paths use the existing Git tag and preserve
+notes across retries. All 14 additional allocation checks passed on Node 24.
+Formatting, package-boundary checks,
+workflow linting, and Compose configuration checks passed. These changes do
+not alter the runtime or its build inputs, so the performance benchmark was
+not repeated.
 
 ## Upstream PR preparation — September 12, 2026
 
@@ -50,8 +113,9 @@ The final rebuild passed the runtime, browser, and image-scan checks below.
 - The dependency-managed Buildx 0.37.1, Cosign 3.1.3, and Grype 0.118.0 images
   were pulled and their binaries checked on Linux ARM64. Workflow linting,
   metadata parser tests, and installer cleanup tests passed. Formatting and
-  package-boundary checks passed too. The revised tool installation path still needs
-  its own hosted Actions run; local tests cannot establish hosted publication.
+  package-boundary checks passed too. The revised tool installation path was
+  still awaiting a hosted run at this point; the later `58a8c9a` run above
+  supplies that evidence. Local tests alone cannot establish publication.
 
 The [container/development benchmark](PERFORMANCE.md#container-versus-npm-run-dev)
 records its own scope and repeatable procedure. Local reports and screenshots
@@ -85,7 +149,8 @@ HEAD commit alone.
    Compose example, standalone server, shared provider handlers, workflow, and
    dependency manifests together. Restore upstream CODEOWNERS, remove stale
    npm script permissions and fork-specific deployment defaults, and keep
-   GitHub Release/CD automation out of this PR. Preserve the existing
+   automatic GitHub Release/CD automation out of this initial scope. A
+   tag-triggered draft was subsequently added as recorded above. Preserve the existing
    development and Pinokio paths rather than replacing their setup.
 2. **Follow each dependency to the place it is actually selected.** An action's
    commit pin does not update a tool version passed through its inputs. Move
@@ -297,13 +362,13 @@ changes did not replace the underlying evidence.
 
 ## What still needs follow-up?
 
-- **Run the revised workflow on the fork.** Its new dependency-managed tool
-  installation and both architecture builds need fresh hosted verification
-  before calling these exact changes release-tested.
-- **Versioned publication.** Main and commit tags have been exercised. A stable
-  semver tag also updates `latest`; prereleases do not. Application releases and
-  deployment automation remain a separate follow-up, with no GitHub Release
-  creation job in this PR.
+- **Run the publishing-usability changes on the fork.** The dependency-managed
+  toolchain and both architectures passed at `58a8c9a`. The new main-to-`latest`
+  promotion and tag-only draft job still need their own hosted verification.
+- **Versioned publication.** Push a maintainer-chosen version tag and
+  review its draft, evidence downloads, and version references before publishing.
+  Stable version builds also update `latest`; prerelease builds do not. Broader
+  application-release and deployment coordination remains a separate follow-up.
 - **Keep release evidence current.** CI generates scans and build evidence for
   every candidate. The inactive VEX assessment stays historical; reproduce and
   review it for an exact release only if an exception is to be activated.

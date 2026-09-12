@@ -53,7 +53,7 @@ jobs:
         run: npm test
 
   prepare:
-    name: Choose build-only or release
+    name: Choose build-only or publishing
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -63,6 +63,8 @@ jobs:
       created: ${{ steps.meta.outputs.created }}
       version: ${{ steps.meta.outputs.version }}
       publish: ${{ steps.meta.outputs.publish }}
+      release: ${{ steps.meta.outputs.release }}
+      tags: ${{ steps.meta.outputs.tags }}
       node: ${{ steps.toolchain.outputs.node }}
       runtime: ${{ steps.toolchain.outputs.runtime }}
       buildkit: ${{ steps.toolchain.outputs.buildkit }}
@@ -77,21 +79,9 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-          version="sha-${GITHUB_SHA}"
-          publish=false
-          if [[ "$EVENT" != pull_request && "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]]; then
-            publish=true
-          elif [[ "$EVENT" == push && "$GITHUB_REF" == refs/tags/* ]]; then
-            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
-            version="$GITHUB_REF_NAME"
-            publish=true
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          node scripts/container-publication.mjs prepare >> "$GITHUB_OUTPUT"
       - name: Read dependency-managed runtime and build tools
         id: toolchain
         run: node scripts/container-toolchain.mjs >> "$GITHUB_OUTPUT"
@@ -327,7 +317,7 @@ jobs:
       registry-password: ${{ secrets.GITHUB_TOKEN }}
 
   verify-and-promote:
-    name: Verify evidence and publish release tags
+    name: Verify evidence and publish image tags
     needs: [prepare, index, provenance]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -349,11 +339,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Verify build records and publish release tags
+      - name: Verify build records and publish image tags
         env:
           IMAGE: ${{ needs.prepare.outputs.image }}
           DIGEST: ${{ needs.index.outputs.digest }}
-          VERSION: ${{ needs.prepare.outputs.version }}
+          IMAGE_TAGS: ${{ needs.prepare.outputs.tags }}
         run: |
           set -euo pipefail
           mkdir -p evidence
@@ -373,37 +363,14 @@ jobs:
             jq -e '.SPDX.packages | length > 0' "evidence/sbom-$arch.json"
             jq -e '.SLSA | type == "object"' "evidence/buildkit-provenance-$arch.json"
           done
-          tags=("sha-$GITHUB_SHA")
-          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
-            tags+=("$VERSION")
-            if [[ "$VERSION" != *-* ]]; then tags+=(latest); fi
-          else
-            tags+=(main)
-          fi
+          read -r -a tags <<< "$IMAGE_TAGS"
           for tag in "${tags[@]}"; do
             docker buildx imagetools create --tag "$IMAGE:$tag" "$IMAGE@$DIGEST"
             actual=$(docker buildx imagetools inspect "$IMAGE:$tag" --format '{{json .Manifest}}' | jq -r .digest)
             [[ "$actual" == "$DIGEST" ]]
           done
           printf '%s@%s\n' "$IMAGE" "$DIGEST" > evidence/image.txt
-          amd64=$(jq -r '.manifests[] | select(.platform.architecture == "amd64" and .platform.os == "linux") | .digest' evidence/index.json)
-          arm64=$(jq -r '.manifests[] | select(.platform.architecture == "arm64" and .platform.os == "linux") | .digest' evidence/index.json)
-          {
-            echo '### Published container'
-            echo
-            echo "- Image digest (multi-platform index): \`$IMAGE@$DIGEST\`"
-            echo "- Source commit: \`$GITHUB_SHA\`"
-            echo "- Published tags: \`${tags[*]}\`"
-            echo "- Pull by tag: \`docker pull $IMAGE:${tags[0]}\`"
-            echo "- Pull by digest: \`docker pull $IMAGE@$DIGEST\`"
-            echo
-            echo '| Platform | Manifest digest |'
-            echo '| --- | --- |'
-            echo "| linux/amd64 | \`$IMAGE@$amd64\` |"
-            echo "| linux/arm64 | \`$IMAGE@$arm64\` |"
-            echo
-            echo "Evidence: [workflow artifacts](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) · [package](https://github.com/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${GITHUB_REPOSITORY#*/})"
-          } >> "$GITHUB_STEP_SUMMARY"
+          node scripts/container-publication.mjs evidence >> "$GITHUB_STEP_SUMMARY"
       - name: Upload verified build records and released image reference
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -411,3 +378,35 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 90
+
+  draft-release:
+    name: Create draft GitHub Release (version tags only)
+    needs: [prepare, index, verify-and-promote]
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    # Only tag builds reach this job. It does not create Git tags, build, or sign.
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download verified image evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: container-evidence-${{ github.sha }}
+          path: evidence
+      - name: Download both architecture scan reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: vulnerabilities-*
+          path: scans
+      - name: Prepare editable notes and attach container evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          DIGEST: ${{ needs.index.outputs.digest }}
+        run: node scripts/container-publication.mjs draft >> "$GITHUB_STEP_SUMMARY"

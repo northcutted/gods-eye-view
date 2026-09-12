@@ -1,5 +1,7 @@
 # God's Eye View — a small Docker setup you can grow into your own stack.
-# Start here: docker compose up --build -d
+# Published image: set GEV_IMAGE=ghcr.io/bilawalsidhu/gods-eye-view:latest in .env.
+# Then: docker compose pull app && docker compose up -d --no-build app
+# Local build instead: leave GEV_IMAGE unset; docker compose up --build -d
 # Then open: http://localhost:8080
 # Requires Docker Compose 2.24+ for the optional .env file below.
 # Walkthrough, updates, and image verification: docs/CONTAINERS.md
@@ -8,12 +10,15 @@ services:
   app:
     # 1. Choose where the app comes from.
     # By default, build this checkout and call the image gods-eye-view:local.
-    # Canonical published image: ghcr.io/bilawalsidhu/gods-eye-view
-    # After upstream publication, copy the verified digest from the
-    # bilawalsidhu/gods-eye-view Actions summary into GEV_IMAGE in your .env:
-    #   ghcr.io/bilawalsidhu/gods-eye-view@sha256:<verified-digest>
-    # Until a verified upstream image is available, use the local build above.
-    # Then use: docker compose pull app && docker compose up -d --no-build app
+    # To use the published image instead, add this to your existing .env:
+    #   GEV_IMAGE=ghcr.io/bilawalsidhu/gods-eye-view:latest
+    # latest moves after verified builds; pull again to receive updates.
+    # For repeatable deployments, GEV_IMAGE can also be a version or digest
+    # from the bilawalsidhu/gods-eye-view Actions summary or release notes.
+    # See docs/CONTAINERS.md for digest verification and rollback commands.
+    # Before upstream publication, leave GEV_IMAGE unset and build locally.
+    # Never use --build with a published GEV_IMAGE: that would tag a local
+    # build with the registry image's name. Use pull and up --no-build instead.
     # Copying this service into another stack? Remove `build` when using a
     # published image; otherwise context: . would build that stack's directory.
     image: ${GEV_IMAGE:-gods-eye-view:local}

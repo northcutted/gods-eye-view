@@ -59,6 +59,8 @@
   "scripts/build-container.mjs",
   "scripts/compress-assets.mjs",
   "scripts/container-toolchain.mjs",
+  "scripts/container-publication.mjs",
+  "src/tooling/containerPublication.test.mjs",
   "scripts/benchmark-container.mjs",
   "src/tooling/containerMaintenance.test.mjs",
   "scripts/test-container.mjs",

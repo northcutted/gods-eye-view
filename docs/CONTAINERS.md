@@ -40,25 +40,44 @@ See the [benchmark and its limits](PERFORMANCE.md#container-versus-npm-run-dev).
 
 You need a checkout of this repository and Docker with **Compose 2.24 or newer**.
 Check with `docker compose version`. Run these commands from the repository
-root, where `compose.yaml` lives:
+root, where `compose.yaml` lives. Add this line to your private `.env`, keeping
+any existing settings:
+
+```dotenv
+GEV_IMAGE=ghcr.io/bilawalsidhu/gods-eye-view:latest
+```
 
 ```sh
-docker compose up --build -d
+docker compose pull app
+docker compose up -d --no-build app
 docker compose ps
 ```
 
-Open **http://localhost:8080**. The first build downloads its dependencies;
-later builds can reuse local build layers. The app starts with its keyless
-providers, just like the terminal setup.
+Open **http://localhost:8080**. Docker downloads the prebuilt app; there is
+nothing to compile locally. The app starts with its keyless providers, just
+like the terminal setup. `latest` is the easy default and moves after verified
+builds. It is not a promise that the app has reached a stable release.
 
 **Canonical image:** `ghcr.io/bilawalsidhu/gods-eye-view`, published from
 [`bilawalsidhu/gods-eye-view`](https://github.com/bilawalsidhu/gods-eye-view).
-All published-image examples in this guide use that upstream identity. After
-upstream publication, copy a verified digest from its successful container
-workflow in [Actions](https://github.com/bilawalsidhu/gods-eye-view/actions).
-Until then, use the local build above. The dated
+All published-image examples in this guide use that upstream identity. These
+pull commands become available when upstream enables container publication.
+Until then, build locally as below. The dated
 [validation record](CONTAINER-VALIDATION.md) includes historical fork tests;
 those are not evidence that a canonical upstream image has been published.
+
+### Build from your checkout
+
+Leave `GEV_IMAGE` unset in your shell and `.env` (or set it to
+`gods-eye-view:local`), then run:
+
+```sh
+docker compose up --build -d
+```
+
+The first build downloads its dependencies; later builds can reuse local
+layers. Do not use `--build` with the published image address: it would label
+your local build with that address instead of running the downloaded image.
 
 ### The commands you'll use most
 
@@ -142,8 +161,9 @@ volume, and outbound access to the live data providers.
 1. Copy the `app` service and the top-level `cache` volume declaration from
    [compose.yaml](../compose.yaml) into your stack. Rename them if those names
    are already taken, updating the service's volume reference too.
-2. Choose the image. For a published release, set `GEV_IMAGE` to its verified
-   digest and remove `build`. For a local build, point `build.context` at
+2. Choose the image. Use `ghcr.io/bilawalsidhu/gods-eye-view:latest` for easy
+   updates, or a verified digest to pin exact bytes. Set `GEV_IMAGE` and remove
+   `build` for a published image. For a local build, point `build.context` at
    this repository, not at your other stack's directory.
 3. Point `env_file` at the app's private environment file, or use your stack's
    existing environment mapping. Relative paths are resolved from the Compose
@@ -214,7 +234,8 @@ transactional budget across replicas, even if several instances share files.
 Use the same image and safety settings on a Synology or another Linux NAS.
 When a verified image is available, pulling it is usually more practical
 than compiling the app on the NAS. Import the Compose project into your NAS's
-container manager, set `GEV_IMAGE` to the verified digest, and remove `build`.
+container manager, set `GEV_IMAGE` to `ghcr.io/bilawalsidhu/gods-eye-view:latest`
+(or a verified digest), and remove `build`.
 Keep the default entrypoint; you do not need a terminal or npm inside the image.
 
 - **Check the Compose version, not just the Docker version.** Our optional
@@ -241,14 +262,27 @@ tested on every NAS model or container-manager version.
 
 ## 🔄 Update or roll back
 
-For a local source build, after updating your checkout:
+For the default published `latest` image, update with:
+
+```sh
+docker compose pull app
+docker compose up -d --no-build app
+```
+
+Pulling downloads the newer image; `up` replaces the running container while
+keeping its cache. Updates are not installed automatically.
+
+For a local source build, leave `GEV_IMAGE` unset or set to
+`gods-eye-view:local`, then update your checkout and run:
 
 ```sh
 docker compose up --build -d
 ```
 
-For a published release, first verify the image as described below. An image
-**digest** is its content fingerprint: unlike a tag such as `main`, it always
+### Pin a build or roll back
+
+For exact version control, first verify the image as described below. An image
+**digest** is its content fingerprint: unlike a tag such as `latest`, it always
 identifies the same image bytes. Set this in your private `.env`, replacing
 the placeholder with the verified release digest:
 
@@ -347,19 +381,22 @@ The container workflow has two paths. Pull requests and manual runs on
 non-default branches build and test without publishing. Runs on the default
 branch (`main`) and supported version-tag pushes take the release path.
 
-| Job in Actions                               | What it does                                                                                                                                               |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Check application**                        | Runs formatting, package import-boundary checks, and unit tests on each listed Node version.                                                               |
-| **Choose build-only or release**             | Reads the dependency pins, sets the image name and version, and decides which path this run can take. Application checks follow this job.                  |
-| **Test container without publishing**        | Builds and tests an image on AMD64 and ARM64, without uploading it to the registry. This is the build-only path.                                           |
-| **Build, test, and scan image**              | Builds each architecture, uploads a temporary staging image with its dependency inventory and build records, then tests and scans that exact image.        |
-| **Assemble multi-platform image**            | Joins the tested AMD64 and ARM64 images under one reference so Docker can select the right architecture.                                                   |
-| **Sign build provenance (SLSA)**             | Calls the isolated signing workflow to attach a signed record of where the build came from.                                                                |
-| **Verify evidence and publish release tags** | Checks the signed build record and attached inventories, then gives the verified image its release tags. Uploads the verification evidence for inspection. |
+| Job in Actions                                      | What it does                                                                                                                                        |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Check application**                               | Runs formatting, package import-boundary checks, and unit tests on each listed Node version.                                                        |
+| **Choose build-only or publishing**                 | Reads the dependency pins, sets the image name and version, and decides which path this run can take. Application checks follow this job.           |
+| **Test container without publishing**               | Builds and tests an image on AMD64 and ARM64, without uploading it to the registry. This is the build-only path.                                    |
+| **Build, test, and scan image**                     | Builds each architecture, uploads a temporary staging image with its dependency inventory and build records, then tests and scans that exact image. |
+| **Assemble multi-platform image**                   | Joins the tested AMD64 and ARM64 images under one reference so Docker can select the right architecture.                                            |
+| **Sign build provenance (SLSA)**                    | Calls the isolated signing workflow to attach a signed record of where the build came from.                                                         |
+| **Verify evidence and publish image tags**          | Checks the signed build record and attached inventories, then gives the verified image its tags. Uploads the verification evidence for inspection.  |
+| **Create draft GitHub Release (version tags only)** | Uses the Git tag as the release version. Creates editable release notes and attaches the verified image evidence and scans after publishing.        |
 
 On a pull request, skipped release jobs are expected. On a release run, the
 build-only job is skipped instead. If a check fails, later jobs on that path
 do not proceed. Open the failed job and step to see which check needs attention.
+The draft-release job is skipped for branch builds, including manual runs on
+main. This does not prevent normal container publishing.
 
 A **staging image** is a candidate uploaded for testing, not an approved release.
 Only the final verification job assigns tags such as `main`, a version, or
@@ -370,6 +407,50 @@ below. A green PR run does not mean the signing and publishing path has run.
 If branch protection already requires checks by their old names, update those
 required-check selections to match the names above after the renamed checks run.
 Changing workflow labels does not update repository protection settings.
+
+### Prepare a GitHub Release when you're ready
+
+Push a version tag to prepare a GitHub Release. Branch pushes, scheduled builds,
+and manual runs on main publish images only; there is no separate version input.
+
+1. Create and push a version tag, such as `v1.2.3`, on the commit you intend to
+   release. The tag must include the container workflow. Push one release tag
+   at a time; do not move it afterward.
+2. Wait for **Container build and release** to pass its checks, scans, and
+   provenance verification. It uses the Git tag verbatim: `v1.2.3` becomes
+   release **v1.2.3**, container tag **`:v1.2.3`**, and OCI image version
+   **`v1.2.3`**. The same version is recorded in `release.json`.
+3. Follow **Draft release ready** in the Actions summary. Add your usual
+   highlights, screenshots, and upgrade notes above the container section,
+   review the generated changelog, and publish the release when ready.
+
+This builds the tagged commit, not whichever commit happens to be on main
+when the workflow finishes. The tag must already exist and resolve to the
+tested commit; the workflow never creates or moves a Git tag. The image version
+is published before the draft is created, so a draft failure does not undo a
+successful image publication.
+A version such as `v1.2.3-rc.1` creates a prerelease draft and does not move
+the container's `latest` tag. An ordinary main build later can still move
+`latest`, so use the explicit prerelease tag or digest to test that build.
+
+The container section lists published tags, the Git commit SHA, the image
+digest, and AMD64/ARM64 manifest digests. Downloads include `release.json`,
+both SBOMs, BuildKit and signed SLSA provenance, both complete scan reports,
+`VERIFYING.md`, and checksums. `release.json` is an index of references, not a
+replacement for signed provenance. Registry evidence remains attached too.
+
+Existing releases are not rewritten. If an asset upload fails, use **Re-run
+failed jobs**: the same draft job can upload missing files from that exact
+build without replacing notes or existing assets. A different build, altered
+asset, or already-published release is left unchanged and requires manual
+review. Use a new Git tag for a new release. Only this tag-only job
+gets permission to write releases; it has no image-build or signing role.
+
+GitHub Releases and the container's `latest` tag are separate: publishing notes
+does not control which image `latest` points to, and nothing here deploys the
+app to users' servers. Full application-release/CD coordination can follow
+later. See GitHub's [tag-triggered workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#push)
+and [draft release support](https://cli.github.com/manual/gh_release_create).
 
 ### Run the container browser check locally
 
@@ -453,10 +534,13 @@ and GitHub's runner isolation are explicit trust assumptions. See the
 [official container integration](https://github.com/slsa-framework/slsa-github-generator/tree/v2.1.0/internal/builders/container)
 and [SLSA requirements](https://slsa.dev/spec/v1.2/build-requirements).
 
-Main builds use `main` and `sha-COMMIT`. Version tags such as `v0.1.1` also
-publish that version; stable releases update `latest`, prereleases do not.
-This workflow does not create GitHub Releases or choose the application's
-release version. Coordinating application releases and deployments is separate.
+Main builds publish `latest`, `main`, and `sha-COMMIT`. Supported Git version
+tags publish that exact version, such as `v0.1.1`, and prepare a draft release.
+Stable version builds update `latest`; prerelease builds do not. Therefore
+`latest` means the most recently promoted default-branch or stable-version
+build, not necessarily the latest GitHub Release or highest version number.
+Only tag builds create a draft GitHub Release; the maintainer chooses the Git
+tag and publishes the notes. Image updates do not restart deployments.
 The Actions summary prints copyable pull commands, the full multi-platform digest
 and the separate AMD64/ARM64 manifest digests.
 Weekly main builds exercise the pipeline but do not update pinned dependencies.
@@ -497,8 +581,10 @@ docker buildx imagetools inspect "$IMAGE" --format '{{json .SBOM}}'
 docker buildx imagetools inspect "$IMAGE" --format '{{json .Provenance}}'
 ```
 
-Use the actual upstream digest and version tag. For a main build, use
-`--source-branch main` instead of `--source-tag`. Check
+Use the actual upstream digest and build ref. For a main build, use
+`--source-branch main` instead of `--source-tag`. Versioned releases always
+use their Git tag. The generated `VERIFYING.md` selects the right flag for its
+build; `release.json` records the source ref. Check
 the expected commit in `invocation.configSource.digest.sha1` and the expected
 caller `.github/workflows/container.yml` too; the repository name alone does
 not tell you that you have the intended release.
