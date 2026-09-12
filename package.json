@@ -79,7 +79,11 @@
     "./server/providers/live": {
       "node": "./server/providers/live.js"
     },
-    "./sources/adsb-lol": "./src/data/adsbLolFallback.js"
+    "./sources/adsb-lol": "./src/data/adsbLolFallback.js",
+    "./server/providers/places": {
+      "node": "./server/providers/places.js"
+    },
+    "./sources/places": "./src/data/placeProviderPayloads.js"
   },
   "allowScripts": {
     "esbuild@0.25.12": true,
