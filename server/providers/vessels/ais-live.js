@@ -69,7 +69,9 @@ let _aisWebSocketImpl;
  * the Vite server keeps one backend websocket open and exposes a same-origin
  * JSON snapshot to the Cesium layer.
  */
-export function aisLiveProxy() {
+export function aisLiveProxy({ WebSocketImpl } = {}) {
+  // The standalone bundle supplies ws because its runtime has no node_modules.
+  if (WebSocketImpl) _aisWebSocketImpl = WebSocketImpl;
   function install(middlewares) {
     middlewares.use('/api/ais-live', async (req, res) => {
       try {

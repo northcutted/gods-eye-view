@@ -9,7 +9,12 @@ import { promises as fsp } from 'node:fs';
  */
 export function adsbdbProxy() {
   const TTL_MS = 24 * 3600_000;
-  const CACHE_PATH = path.join(process.cwd(), '.gev-cache', 'adsbdb.json');
+  const CACHE_PATH = path.join(
+    path.resolve(
+      process.env.GEV_CACHE_DIR || path.join(process.cwd(), '.gev-cache'),
+    ),
+    'adsbdb.json',
+  );
   let cache = { routes: {}, aircraft: {} };
   let dirty = false;
   let loaded = false;

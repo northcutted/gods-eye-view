@@ -39,6 +39,9 @@ try {
     '--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m',
     '--env=GOOGLE_MAPS_API_KEY=container-public-fixture',
     '--env=OPENAI_API_KEY=container-private-fixture',
+    '--env=GEV_CACHE_DIR=/app/.gev-cache/provider-fixture',
+    '--env=AISSTREAM_API_KEY=container-ais-fixture',
+    '--env=AISSTREAM_URL=ws://127.0.0.1:9091',
     image,
   ).trim();
   run('start', id);
@@ -70,6 +73,35 @@ try {
       assert.throws(() => fs.writeFileSync('/app/should-not-write', 'x'));
       fs.writeFileSync('/app/.gev-cache/write-probe', 'ok');
       const get = (path) => fetch('http://127.0.0.1:8080' + path);
+      // A seeded provider cache must be read from the configured directory.
+      fs.mkdirSync(process.env.GEV_CACHE_DIR, { recursive: true });
+      fs.writeFileSync(process.env.GEV_CACHE_DIR + '/celestrak-fixture.json', JSON.stringify({ at: Date.now(), body: 'fixture TLE cache' }));
+      const cached = await get('/api/celestrak/fixture');
+      assert.equal(cached.status, 200);
+      assert.equal(cached.headers.get('x-tle-cache'), 'HIT');
+      assert.equal(await cached.text(), 'fixture TLE cache');
+
+      // Exercise the bundled ws client against an offline local handshake target.
+      // A lost dependency injection would fall back to require('ws'), which
+      // cannot succeed in this image without node_modules.
+      const target = require('node:http').createServer();
+      let upgraded = false;
+      target.on('upgrade', (_request, socket) => {
+        upgraded = true;
+        socket.destroy();
+      });
+      await new Promise(resolve => target.listen(9091, '127.0.0.1', resolve));
+      try {
+        const deadline = Date.now() + 10_000;
+        while (!upgraded && Date.now() < deadline) {
+          const response = await get('/api/ais-live');
+          assert.equal(response.status, 200);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.equal(upgraded, true, 'AIS must use the bundled WebSocket transport');
+      } finally {
+        await new Promise(resolve => target.close(resolve));
+      }
       const document = await (await get('/')).text();
       assert.match(document, /runtime-config\.js/);
       for (const asset of ['/cesium/Cesium.js', '/cesium/Widgets/widgets.css']) {
