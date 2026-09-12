@@ -31,5 +31,18 @@
   "build/vite.js",
   "server/standalone/vite.config.js",
   "vite.config.js",
-  "src/tooling/viteBuild.test.mjs"
+  "src/tooling/viteBuild.test.mjs",
+  "server/standalone/http.js",
+  "server/standalone/index.mjs",
+  "server/standalone/healthcheck.mjs",
+  "scripts/build-container.mjs",
+  "scripts/test-container.mjs",
+  "src/tooling/productionServer.test.mjs",
+  ".github/workflows/container.yml",
+  ".github/dependabot.yml",
+  "compose.yaml",
+  "docs/CONTAINERS.md",
+  "docs/CONTAINER-VALIDATION.md",
+  "docs/CONTAINER-VEX.md",
+  "docs/security/container-vex/evidence.json"
 ]

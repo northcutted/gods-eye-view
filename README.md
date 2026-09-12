@@ -107,6 +107,9 @@ Version 8.2 fixes the launcher installation issue;
 
 ### Path 2 — Terminal / coding agent
 
+**Prefer Docker?** [Run the globe in a container](docs/CONTAINERS.md) — start keyless,
+add optional keys through `.env`, or connect it to your existing Compose stack.
+
 Use **Node.js 24.x (24.14.0 or later) or 26.x**. The setup doctor warns about
 Node 25, which is end-of-life.
 

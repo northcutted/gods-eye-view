@@ -1,0 +1,28 @@
+# Allowlist the build inputs. Never send local credentials or generated assets.
+**
+!package.json
+!package-lock.json
+!index.html
+!style.css
+!LICENSE
+!DATA_SOURCES.md
+!src/
+!src/**
+!public/
+!public/**
+!server/
+!server/**
+!build/
+!build/**
+!config/
+!config/**
+!scripts/
+!scripts/build-container.mjs
+!scripts/google-server-key.mjs
+!scripts/pinokio-environment.mjs
+# Defense in depth for future additions under an allowed directory.
+**/.env*
+**/*.pem
+**/*.key
+**/.DS_Store
+**/*.test.mjs

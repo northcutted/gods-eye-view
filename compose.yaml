@@ -1,0 +1,106 @@
+# God's Eye View — a small Docker setup you can grow into your own stack.
+# Start here: docker compose up --build -d
+# Then open: http://localhost:8080
+# Requires Docker Compose 2.24+ for the optional .env file below.
+# Walkthrough, updates, and image verification: docs/CONTAINERS.md
+
+services:
+  app:
+    # 1. Choose where the app comes from.
+    # By default, build this checkout and call the image gods-eye-view:local.
+    # After a verified release is available, set GEV_IMAGE in your .env to:
+    #   ghcr.io/northcutted/gods-eye-view@sha256:<verified-release-digest>
+    # Then use: docker compose pull app && docker compose up -d --no-build app
+    # Copying this service into another stack? Remove `build` when using a
+    # published image; otherwise context: . would build that stack's directory.
+    image: ${GEV_IMAGE:-gods-eye-view:local}
+    build:
+      context: .
+
+    # 2. Choose how you reach it: host address : host port : container port.
+    # 127.0.0.1 keeps direct access on this machine. To use localhost:9090,
+    # add GEV_HTTP_PORT=9090 to .env; leave the container's port at 8080.
+    # Do not expose this directly to the internet: the app has no login and
+    # people who can reach its APIs can consume your provider quotas.
+    ports:
+      - '127.0.0.1:${GEV_HTTP_PORT:-8080}:8080'
+
+    # Optional: connect to an existing Docker reverse-proxy network.
+    # Uncomment this AND the networks block at the bottom, set its real name,
+    # and remove `ports` above if you only want access through the proxy.
+    # Point the proxy at http://gods-eye-view:8080, not localhost:8080.
+    # Configure HTTPS, authentication, and WebSocket support at the proxy.
+    # Keep outbound internet access: live providers need it.
+    # networks:
+    #   proxy:
+    #     aliases: [gods-eye-view]
+
+    # 3. Add optional API keys at startup, never while building the image.
+    # No .env? The keyless app still starts. See .env.example for supported keys.
+    # Keep .env private and out of Git. The in-app key-saving routes are off in
+    # containers; after editing .env, run: docker compose up -d --force-recreate
+    # Docker does NOT automatically pass your shell's keys into the container.
+    # An existing stack can replace env_file with its own environment mapping.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # These override development values in .env, including PORT=4173.
+      # 0.0.0.0 here lets Docker reach the app INSIDE the container; the `ports`
+      # host address above controls whether other machines can reach it.
+      HOST: 0.0.0.0
+      PORT: '8080'
+      GEV_CACHE_DIR: /app/.gev-cache
+
+    # 4. Keep the safety defaults when moving this into another stack.
+    # Run as an unprivileged account. App files stay read-only; only the two
+    # mounts below allow writes. No extra Linux privileges or Docker socket.
+    user: '65532:65532'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    # Server-side limits; the browser does the globe rendering on your device.
+    # Adjust these for your load instead of removing the security settings.
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 2
+
+    # 5. Keep state across updates. This Docker-managed volume holds provider
+    # caches AND TomTom's daily usage counter. Do not replace it with tmpfs.
+    # `docker compose down` keeps it; `down --volumes` deletes it and its counter.
+    # Start with one replica: this counter is not a shared, multi-server budget.
+    volumes:
+      - cache:/app/.gev-cache
+    # Small, disposable scratch space. Its contents disappear on container stop.
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+
+    # 6. Check the app, and give it time to finish requests during a restart.
+    # There is no shell or curl in this image, so the check runs Node directly.
+    # /healthz checks the local server, not whether every live feed is online.
+    stop_grace_period: 15s
+    healthcheck:
+      test: [CMD, /nodejs/bin/node, /app/server/standalone/healthcheck.mjs]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    # Restart after a process exit, unless you stopped it yourself. Docker does
+    # not restart a running container just because its health check fails.
+    restart: unless-stopped
+
+volumes:
+  # Docker creates this with the image's cache-directory ownership (65532).
+  # Keep the Compose project name stable to keep using the same named volume.
+  # Moving an existing install into a different project? Find its volume with
+  # `docker volume ls`, then uncomment these fields using that EXACT name.
+  # Do not guess: a new empty volume also means a new usage counter.
+  cache:
+    # external: true
+    # name: your-existing-project_cache
+
+# Optional shared proxy network: it must already exist and contain your proxy.
+# networks:
+#   proxy:
+#     external: true
+#     name: your-existing-proxy-network
