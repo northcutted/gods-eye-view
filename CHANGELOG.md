@@ -25,6 +25,9 @@ of current runtime behavior, see [`docs/CURRENT-STATE.md`](docs/CURRENT-STATE.md
   reports. The hosted release flow still needs end-to-end verification.
 - A first-run browser smoke test against the built container, plus Docker/NAS
   setup notes informed by SM-26's Docker install work (#208).
+- Split aircraft and vessel server providers into focused modules for source
+  fetching, AIS records/tracks and shared request helpers; preserve existing
+  routes, local setup, fallback behavior and rendering.
 
 ### Changed
 - Separate explicit browser build settings from standalone environment loading
