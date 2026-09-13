@@ -6,6 +6,8 @@ import path from 'node:path';
 import http from 'node:http';
 import vm from 'node:vm';
 import { once } from 'node:events';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 import { compressAssets } from '../../scripts/compress-assets.mjs';
 import {
@@ -62,6 +64,39 @@ test('production retains every provider except the credential-writing developmen
       .map(({ name }) => name)
       .filter((name) => name !== 'gev-key-setup'),
   );
+});
+
+test('extracted disk caches honor container overrides and the development default', () => {
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  for (const directory of [
+    undefined,
+    'relative-cache',
+    path.join(tmpdir(), 'gev-cache-fixture'),
+  ]) {
+    const env = { ...process.env };
+    if (directory === undefined) delete env.GEV_CACHE_DIR;
+    else env.GEV_CACHE_DIR = directory;
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          `
+      import { OVERPASS_DISK_DIR } from './server/providers/overpass/constants.js';
+      import { MILITARY_INSTALLATION_DISK_DIR } from './server/providers/military-installations/constants.js';
+      console.log(JSON.stringify([OVERPASS_DISK_DIR, MILITARY_INSTALLATION_DISK_DIR]));
+    `,
+        ],
+        { cwd: root, env, encoding: 'utf8' },
+      ),
+    );
+    const cache = path.resolve(root, directory || '.gev-cache');
+    assert.deepEqual(actual, [
+      path.join(cache, 'overpass'),
+      path.join(cache, 'military-installations'),
+    ]);
+  }
 });
 
 test('standalone HTTP serves only build assets, mounts APIs correctly, and sanitizes errors', async (t) => {

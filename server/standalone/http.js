@@ -32,6 +32,8 @@ export async function createProductionServer({
   staticRoot = path.join(applicationRoot, 'dist'),
   env = process.env,
   plugins = localProviderPlugins({
+    // Bundling changes module locations; retain the deployed config root.
+    sourceRoot: applicationRoot,
     includeKeySetup: false,
     includeRealtimeDebugLog: false,
     WebSocketImpl: WebSocket,
