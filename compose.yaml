@@ -12,7 +12,8 @@ services:
     # By default, build this checkout and call the image gods-eye-view:local.
     # To use the published image instead, add this to your existing .env:
     #   GEV_IMAGE=ghcr.io/bilawalsidhu/gods-eye-view:latest
-    # latest moves after verified builds; pull again to receive updates.
+    # latest moves only after verified stable version-tag releases, not branch
+    # commits. Pull again to receive an intentional release update.
     # For repeatable deployments, GEV_IMAGE can also be a version or digest
     # from the bilawalsidhu/gods-eye-view Actions summary or release notes.
     # See docs/CONTAINERS.md for digest verification and rollback commands.

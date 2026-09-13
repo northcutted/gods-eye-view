@@ -21,14 +21,19 @@ import {
   createDraft,
   existingRelease,
   releaseVersion,
+  branchAlias,
+  verifyReleaseBranch,
 } from '../../scripts/container-publication.mjs';
 
 const sha = 'a'.repeat(40);
 const digest = `sha256:${'b'.repeat(64)}`;
 const base = {
   EVENT: 'push',
-  GITHUB_REF: 'refs/heads/main',
+  GITHUB_EVENT_NAME: 'push',
+  GITHUB_REF: 'refs/tags/v1.2.3',
   DEFAULT_BRANCH: 'main',
+  RELEASE_BRANCH: 'main',
+  RELEASE_BRANCH_COMMIT: sha,
   GITHUB_SHA: sha,
   GITHUB_REPOSITORY: 'bilawalsidhu/gods-eye-view',
   IMAGE: 'ghcr.io/bilawalsidhu/gods-eye-view',
@@ -52,50 +57,87 @@ const recordFor = (env) =>
     index,
   );
 
-test('verified default-branch builds publish latest, main, and the commit tag', () => {
-  for (const EVENT of ['push', 'schedule', 'workflow_dispatch']) {
-    assert.equal(publicationPlan({ ...base, EVENT }).release, false);
-    assert.deepEqual(publicationPlan({ ...base, EVENT }).tags, [
-      `sha-${sha}`,
-      'main',
-      'latest',
-    ]);
-  }
+test('workflow keeps all publishing permissions behind explicit tag-push gates', () => {
+  const workflow = readFileSync(
+    new URL('../../.github/workflows/container.yml', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n');
+  const job = (name) =>
+    workflow.split(`\n  ${name}:\n`)[1]?.split(/\n  [\w-]+:\n/)[0];
+  assert.ok(workflow.includes("branches: ['**']"));
+  assert.ok(workflow.includes("tags: ['v*']"));
   assert.ok(
-    publicationPlan({
-      ...base,
-      GITHUB_REF: 'refs/heads/trunk',
-      DEFAULT_BRANCH: 'trunk',
-    }).tags.includes('latest'),
+    workflow.includes("'publish' || github.ref"),
+    'release runs must serialize alias promotion',
   );
-  for (const env of [
-    { EVENT: 'pull_request' },
-    { GITHUB_REF: 'refs/heads/feature' },
+  for (const name of [
+    'build',
+    'index',
+    'provenance',
+    'verify-and-promote',
+    'draft-release',
   ]) {
-    assert.equal(publicationPlan({ ...base, ...env }).publish, false);
-    assert.equal(publicationPlan({ ...base, ...env }).release, false);
-    assert.deepEqual(publicationPlan({ ...base, ...env }).tags, []);
+    assert.ok(
+      job(name)?.includes(
+        "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.prepare.outputs.publish == 'true'",
+      ),
+      name,
+    );
+  }
+  for (const name of ['prepare', 'checks', 'check-image']) {
+    assert.ok(job(name)?.includes('contents: read'), name);
+    assert.ok(!job(name).includes('packages: write'), name);
+    assert.ok(!job(name).includes('id-token: write'), name);
+    assert.ok(!job(name).includes('contents: write'), name);
+  }
+});
+
+test('only an intentional tag push can publish; every other CI event is build-only', () => {
+  for (const EVENT of [
+    'push',
+    'pull_request',
+    'schedule',
+    'workflow_dispatch',
+  ]) {
+    for (const GITHUB_REF of [
+      'refs/heads/main',
+      'refs/heads/feature',
+      'refs/pull/123/merge',
+      'refs/tags/v1.2.3',
+    ]) {
+      if (EVENT === 'push' && GITHUB_REF.startsWith('refs/tags/')) continue;
+      const env = { ...base, EVENT, GITHUB_EVENT_NAME: EVENT, GITHUB_REF };
+      const plan = publicationPlan(env);
+      assert.equal(plan.publish, false, `${EVENT} ${GITHUB_REF}`);
+      assert.deepEqual(plan.tags, []);
+      assert.equal(plan.branch, '');
+      assert.throws(() => recordFor(env));
+      assert.throws(() => createDraft(env), /version.tag/);
+    }
   }
 });
 
 test('versions retain their own tag; prerelease runs never promote latest', () => {
   assert.deepEqual(
     publicationPlan({ ...base, GITHUB_REF: 'refs/tags/v1.2.3' }).tags,
-    [`sha-${sha}`, 'v1.2.3', 'latest'],
+    ['v1.2.3', 'latest', 'main'],
   );
-  for (const EVENT of ['push', 'workflow_dispatch']) {
+  for (const DEFAULT_BRANCH of ['main', 'trunk']) {
     const stable = publicationPlan({
       ...base,
-      EVENT,
+      DEFAULT_BRANCH,
       GITHUB_REF: 'refs/tags/v1.2.3',
     });
     assert.equal(stable.version, 'v1.2.3');
-    assert.equal(stable.release, true);
     assert.equal(stable.publish, true);
+    assert.deepEqual(stable.tags, ['v1.2.3', 'latest', DEFAULT_BRANCH]);
     assert.deepEqual(
-      publicationPlan({ ...base, EVENT, GITHUB_REF: 'refs/tags/v1.2.3-rc.1' })
-        .tags,
-      [`sha-${sha}`, 'v1.2.3-rc.1'],
+      publicationPlan({
+        ...base,
+        DEFAULT_BRANCH,
+        GITHUB_REF: 'refs/tags/v1.2.3-rc.1',
+      }).tags,
+      ['v1.2.3-rc.1', DEFAULT_BRANCH],
     );
   }
   const prerelease = publicationPlan({
@@ -103,7 +145,7 @@ test('versions retain their own tag; prerelease runs never promote latest', () =
     GITHUB_REF: 'refs/tags/v1.2.3-rc.1',
   });
   assert.equal(prerelease.version, 'v1.2.3-rc.1');
-  assert.equal(prerelease.release, true);
+  assert.equal(prerelease.publish, true);
 });
 
 test('only tag refs can name releases; branches and malformed versions are rejected', () => {
@@ -115,7 +157,7 @@ test('only tag refs can name releases; branches and malformed versions are rejec
     assert.throws(() => releaseVersion(GITHUB_REF), /version tag/);
     assert.equal(
       publicationPlan({ ...base, EVENT: 'workflow_dispatch', GITHUB_REF })
-        .release,
+        .publish,
       false,
     );
     assert.throws(() => createDraft({ ...base, GITHUB_REF }), /version tag/);
@@ -125,7 +167,7 @@ test('only tag refs can name releases; branches and malformed versions are rejec
       ...base,
       EVENT: 'pull_request',
       GITHUB_REF: 'refs/tags/v1.2.3',
-    }).release,
+    }).publish,
     false,
   );
   for (const version of [
@@ -146,7 +188,9 @@ test('only tag refs can name releases; branches and malformed versions are rejec
 test('image evidence separates source SHA, index digest, and both platform digests', () => {
   const record = recordFor(base);
   assert.equal(record.source.commit, sha);
-  assert.equal(record.version, `sha-${sha}`);
+  assert.equal(record.version, 'v1.2.3');
+  assert.equal(record.source.releaseBranch, 'main');
+  assert.equal(record.source.releaseBranchCommit, sha);
   assert.equal(
     recordFor({ ...base, GITHUB_REF: 'refs/tags/v1.2.3' }).version,
     'v1.2.3',
@@ -176,26 +220,85 @@ test('image evidence separates source SHA, index digest, and both platform diges
     assert.throws(() => recordFor({ ...base, ...bad }));
   assert.throws(() =>
     imageRecord(
-      { ...base, IMAGE_TAGS: `sha-${sha}` },
+      { ...base, IMAGE_TAGS: 'v1.2.3 latest main' },
       { ...index, manifests: index.manifests.slice(1) },
     ),
   );
   assert.throws(() =>
     imageRecord(
-      { ...base, IMAGE_TAGS: `sha-${sha}` },
+      { ...base, IMAGE_TAGS: 'v1.2.3 latest main' },
       { ...index, manifests: [...index.manifests, index.manifests[0]] },
     ),
   );
 });
 
-test('verification instructions use branch provenance for main and tag provenance for releases', () => {
-  assert.ok(
-    verificationNotes(recordFor(base)).includes("--source-branch 'main'"),
-  );
+test('published-image instructions verify the version tag, not the branch alias', () => {
+  assert.ok(!verificationNotes(recordFor(base)).includes('--source-branch'));
   assert.ok(
     verificationNotes(
       recordFor({ ...base, GITHUB_REF: 'refs/tags/v1.2.3' }),
     ).includes("--source-tag 'v1.2.3'"),
+  );
+});
+
+test('branch aliases cannot collide with version, latest, commit, or staging tags', () => {
+  assert.equal(branchAlias('main'), 'main');
+  assert.equal(branchAlias('trunk'), 'trunk');
+  for (const branch of [
+    'latest',
+    'v1.2.3',
+    'sha-abc',
+    'build-123',
+    'release/1.x',
+    'main\ninjected',
+    '',
+    'a'.repeat(129),
+  ])
+    assert.throws(() => branchAlias(branch));
+});
+
+test('release branch check accepts ancestors, rejects off-branch commits, and propagates API failures', () => {
+  const head = 'c'.repeat(40);
+  const calls = [];
+  const ref = { ref: 'refs/heads/main', object: { type: 'commit', sha: head } };
+  const request = (repo, route) => {
+    calls.push(route);
+    if (route === 'git/ref/heads/main') return ref;
+    return { status: 'ahead', merge_base_commit: { sha } };
+  };
+  assert.equal(
+    verifyReleaseBranch(base.GITHUB_REPOSITORY, 'main', sha, request),
+    head,
+  );
+  assert.deepEqual(calls, ['git/ref/heads/main', `compare/${sha}...${head}`]);
+  for (const status of ['behind', 'diverged', 'unknown'])
+    assert.throws(
+      () =>
+        verifyReleaseBranch(
+          base.GITHUB_REPOSITORY,
+          'main',
+          sha,
+          (repo, route) =>
+            route.startsWith('git/')
+              ? ref
+              : { status, merge_base_commit: { sha } },
+        ),
+      /must belong/,
+    );
+  assert.equal(
+    verifyReleaseBranch(base.GITHUB_REPOSITORY, 'main', sha, (repo, route) =>
+      route.startsWith('git/')
+        ? { ...ref, object: { type: 'commit', sha } }
+        : { status: 'identical', merge_base_commit: { sha } },
+    ),
+    sha,
+  );
+  assert.throws(
+    () =>
+      verifyReleaseBranch(base.GITHUB_REPOSITORY, 'main', sha, () => {
+        throw new Error('403 forbidden');
+      }),
+    /403/,
   );
 });
 

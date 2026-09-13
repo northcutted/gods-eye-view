@@ -1,7 +1,7 @@
 # 🧪 What we tested
 
 **Local validation and the updated fork publication passed.** The dependency-managed
-workflow passed at `58a8c9a`; the subsequent `latest` and tag-only draft-release
+workflow passed at `58a8c9a`; the subsequent intentional-tag-only publication
 changes described below still need their first hosted run. Application tests, runtime
 safety checks, and a first-run browser check passed for the local image recorded
 below. The scan retained four unfixed High/Critical library findings; under the
@@ -42,23 +42,37 @@ independent local provenance verification for this newer image.
 
 ### Changes made after that hosted run
 
-Main builds now promote `latest` through the same verification gate, and the
-README uses that tag as its simple published-image setup. Version-tag builds
-create a draft GitHub Release after successful image publication, using the
-Git tag verbatim as the release version, image version, and container tag.
+Only version-tag pushes now publish containers. Main and other branch pushes,
+PRs, scheduled runs, and manual runs (including manual runs on tags) build and
+test without uploading images, staging entries, or registry attestations.
+Stable releases publish the exact Git tag, `latest`, and the default-branch
+alias (`main`); prereleases leave `latest` unchanged. No new commit-SHA tags
+are created. The README keeps `latest` as its simple published-image setup.
+Tag-push builds create a draft GitHub Release after successful image publication,
+using the Git tag verbatim as the release version, image version, and container tag.
 There is no manual version input or automatic Git tag creation. The draft
 includes editable highlights, generated change notes,
 container identities, both architecture scans and SBOMs, provenance, and
-verification instructions. Branch pushes and manual runs on main do not create
-GitHub Releases.
+verification instructions. Branch pushes, scheduled builds, and manual runs
+create neither container publications nor GitHub Releases.
 
 The publication helper uses Node built-ins and the runner's GitHub CLI; it adds
-no npm dependency or separately downloaded tool. Tests cover default-branch,
-version, and prerelease tag policy; branch and malformed tag rejection; distinct
-Git/image identities; existing-tag and tag-to-commit checks; pagination and API errors; missing
+no npm dependency or separately downloaded tool. Tests cover the publishing
+event matrix, version and prerelease aliases, invalid/reserved branch names,
+off-branch commit rejection, distinct Git/image identities, existing-tag and
+tag-to-commit checks, pagination and API errors, and missing
 evidence; and resuming interrupted draft uploads without replacing author notes
 or existing assets. The retry test increments the workflow attempt as GitHub
 does, while preserving the original build's identity.
+
+The branch alias is deliberately the repository's default branch, not a guess
+about the tag's creation branch. A read-only branch-ref and commit-comparison
+check requires the tagged commit to be in that branch's history before upload.
+The live check accepted the previously verified `58a8c9a` fork commit as an
+ancestor of its then-current main head, `518c9f8f51b262ea6c246c3b13a3a32bffc06fc0`.
+Every registry-writing, signing, and release job also has an explicit tag-push
+condition; build-only jobs have read-only repository permissions. Release runs
+share one publishing concurrency group so alias promotion cannot interleave.
 
 Local validation commands are `npm run format:check`, `npm run check:boundaries`,
 `actionlint .github/workflows/container.yml`, and `TMPDIR=/private/tmp npm test`.
@@ -69,8 +83,8 @@ performed against a real repository. The first ordinary test invocation hit
 the existing macOS `/var` versus `/private/var` temporary-directory assertion;
 the canonical `TMPDIR` avoids that environment mismatch without changing app code.
 
-The final local suites passed **2,977 tests with one existing skip** on each of
-Node 26.8.2 and 24.20.0, including ten publication tests for the tag-only flow.
+The final local suites passed **2,980 tests with one existing skip** on each of
+Node 26.8.2 and 24.20.0, including thirteen publication tests for the tag-push-only flow.
 Both stable and prerelease draft paths use the existing Git tag and preserve
 notes across retries. All 14 additional allocation checks passed on Node 24.
 Formatting, package-boundary checks,
@@ -363,8 +377,8 @@ changes did not replace the underlying evidence.
 ## What still needs follow-up?
 
 - **Run the publishing-usability changes on the fork.** The dependency-managed
-  toolchain and both architectures passed at `58a8c9a`. The new main-to-`latest`
-  promotion and tag-only draft job still need their own hosted verification.
+  toolchain and both architectures passed at `58a8c9a`. Intentional-tag-only
+  publishing, branch aliases, and the draft job still need their own hosted verification.
 - **Versioned publication.** Push a maintainer-chosen version tag and
   review its draft, evidence downloads, and version references before publishing.
   Stable version builds also update `latest`; prerelease builds do not. Broader

@@ -55,8 +55,10 @@ docker compose ps
 
 Open **http://localhost:8080**. Docker downloads the prebuilt app; there is
 nothing to compile locally. The app starts with its keyless providers, just
-like the terminal setup. `latest` is the easy default and moves after verified
-builds. It is not a promise that the app has reached a stable release.
+like the terminal setup. `latest` is the easy default and moves only after a
+verified stable version-tag release. Branch commits do not update it. Here,
+stable means a version without a prerelease suffix, not a production-readiness
+guarantee for the application.
 
 **Canonical image:** `ghcr.io/bilawalsidhu/gods-eye-view`, published from
 [`bilawalsidhu/gods-eye-view`](https://github.com/bilawalsidhu/gods-eye-view).
@@ -377,9 +379,19 @@ There are two workflows in the Actions tab:
   publishes images to GitHub Container Registry. It does not deploy the app
   to your server or restart your containers.
 
-The container workflow has two paths. Pull requests and manual runs on
-non-default branches build and test without publishing. Runs on the default
-branch (`main`) and supported version-tag pushes take the release path.
+The container workflow has two paths. Pushes to **all branches**, pull requests,
+scheduled runs, and manual runs build and test locally on the runner without
+uploading an image to GHCR. Only an intentional **version-tag push** takes the
+publishing path. A manual run on an existing tag is still build-only.
+
+| Trigger                                       | Published container tags   | GitHub Release   |
+| --------------------------------------------- | -------------------------- | ---------------- |
+| Main/branch push, PR, scheduled or manual run | None                       | None             |
+| Push `v1.2.3`                                 | `v1.2.3`, `latest`, `main` | Editable draft   |
+| Push `v1.2.3-rc.1`                            | `v1.2.3-rc.1`, `main`      | Prerelease draft |
+
+Here `main` is the repository's default-branch alias. It tracks the most recent
+tagged release from that branch, including prereleases—not its latest commit.
 
 | Job in Actions                                      | What it does                                                                                                                                        |
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -395,8 +407,9 @@ branch (`main`) and supported version-tag pushes take the release path.
 On a pull request, skipped release jobs are expected. On a release run, the
 build-only job is skipped instead. If a check fails, later jobs on that path
 do not proceed. Open the failed job and step to see which check needs attention.
-The draft-release job is skipped for branch builds, including manual runs on
-main. This does not prevent normal container publishing.
+All publishing and signing jobs are skipped for build-only runs, not just the
+draft-release job. CI can upload test reports as Actions artifacts, but creates
+no staging image, image tag, or registry attestation on those runs.
 
 A **staging image** is a candidate uploaded for testing, not an approved release.
 Only the final verification job assigns tags such as `main`, a version, or
@@ -410,16 +423,19 @@ Changing workflow labels does not update repository protection settings.
 
 ### Prepare a GitHub Release when you're ready
 
-Push a version tag to prepare a GitHub Release. Branch pushes, scheduled builds,
-and manual runs on main publish images only; there is no separate version input.
+Push a version tag to publish the container and prepare a GitHub Release. Branch
+pushes, scheduled builds, and manual runs publish neither; there is no separate
+version input or manual publishing shortcut.
 
 1. Create and push a version tag, such as `v1.2.3`, on the commit you intend to
-   release. The tag must include the container workflow. Push one release tag
-   at a time; do not move it afterward.
+   release. That commit must be in the default branch's history and include the
+   container workflow. Push one release tag at a time and wait for its workflow
+   to finish before pushing another; do not move tags afterward.
 2. Wait for **Container build and release** to pass its checks, scans, and
    provenance verification. It uses the Git tag verbatim: `v1.2.3` becomes
    release **v1.2.3**, container tag **`:v1.2.3`**, and OCI image version
-   **`v1.2.3`**. The same version is recorded in `release.json`.
+   **`v1.2.3`**. Stable releases also update `latest` and the default-branch
+   alias (`main`). The same version and branch are recorded in `release.json`.
 3. Follow **Draft release ready** in the Actions summary. Add your usual
    highlights, screenshots, and upgrade notes above the container section,
    review the generated changelog, and publish the release when ready.
@@ -430,8 +446,18 @@ tested commit; the workflow never creates or moves a Git tag. The image version
 is published before the draft is created, so a draft failure does not undo a
 successful image publication.
 A version such as `v1.2.3-rc.1` creates a prerelease draft and does not move
-the container's `latest` tag. An ordinary main build later can still move
-`latest`, so use the explicit prerelease tag or digest to test that build.
+the container's `latest` tag; it still updates `main`. Use the explicit version
+or digest to test that build.
+
+A Git tag does not record which branch it came from. This workflow deliberately
+uses the repository's **default branch** as the release branch and checks that
+the tagged commit belongs to its history before any image upload. It does not
+guess among branches that happen to contain the commit. The alias follows the
+default branch's actual name (`main` upstream), which must be a valid container
+tag and must not collide with a version, `latest`, or an internal staging tag.
+Releasing from another branch needs an explicit policy change. The recorded
+branch-head commit captures the membership check; signed provenance still
+identifies the exact Git tag and source commit.
 
 The container section lists published tags, the Git commit SHA, the image
 digest, and AMD64/ARM64 manifest digests. Downloads include `release.json`,
@@ -443,7 +469,7 @@ Existing releases are not rewritten. If an asset upload fails, use **Re-run
 failed jobs**: the same draft job can upload missing files from that exact
 build without replacing notes or existing assets. A different build, altered
 asset, or already-published release is left unchanged and requires manual
-review. Use a new Git tag for a new release. Only this tag-only job
+review. Use a new Git tag for a new release. Only this tag-push-only job
 gets permission to write releases; it has no image-build or signing role.
 
 GitHub Releases and the container's `latest` tag are separate: publishing notes
@@ -509,8 +535,8 @@ configuration, licenses, and dependency metadata, but no runnable
 Package metadata under `/app/third-party` lets SBOM tools identify bundled
 dependencies; it does not mean every upstream file is shipped.
 
-Pull requests build and test both architectures without publishing or signing
-permissions. Trusted main/tag builds use standard GitHub-hosted runners,
+Build-only runs, including main and branch pushes, test both architectures
+without publishing or signing permissions. Version-tag pushes use standard GitHub-hosted runners,
 pinned Buildx/BuildKit, and no shared build cache. The sequence is:
 
 1. Build each platform image with BuildKit `mode=max` provenance and SPDX SBOMs
@@ -534,16 +560,24 @@ and GitHub's runner isolation are explicit trust assumptions. See the
 [official container integration](https://github.com/slsa-framework/slsa-github-generator/tree/v2.1.0/internal/builders/container)
 and [SLSA requirements](https://slsa.dev/spec/v1.2/build-requirements).
 
-Main builds publish `latest`, `main`, and `sha-COMMIT`. Supported Git version
-tags publish that exact version, such as `v0.1.1`, and prepare a draft release.
-Stable version builds update `latest`; prerelease builds do not. Therefore
-`latest` means the most recently promoted default-branch or stable-version
-build, not necessarily the latest GitHub Release or highest version number.
-Only tag builds create a draft GitHub Release; the maintainer chooses the Git
-tag and publishes the notes. Image updates do not restart deployments.
+Only supported Git version-tag **pushes** publish images and prepare a draft
+release. Stable releases publish the exact Git tag, `latest`, and the release
+branch alias; prereleases publish the exact tag and branch alias only. No new
+`sha-COMMIT` tags are created: the full Git commit remains in OCI metadata,
+the Actions summary, and `release.json`, alongside the distinct image digest.
+Existing registry versions and their evidence are not removed.
+
+`latest` means the most recently promoted stable-version build, not necessarily
+the highest version number or the most recently published GitHub Release notes.
+Tag-push workflows share a concurrency group to keep mutable aliases from being
+promoted concurrently. Push one release tag at a time; GitHub can replace a
+queued run when another is queued. Maintainers choose the Git tag and publish
+the draft notes. Image updates do not restart deployments.
 The Actions summary prints copyable pull commands, the full multi-platform digest
 and the separate AMD64/ARM64 manifest digests.
-Weekly main builds exercise the pipeline but do not update pinned dependencies.
+Weekly main builds run local build/runtime/browser checks, not the publishing
+or vulnerability-scan jobs. They do not update pinned dependencies. Every
+tagged release candidate still gets fresh scans before promotion.
 Temporary `build-RUN-ATTEMPT-ARCH` staging tags can remain after a failed check:
 they are not approved releases.
 
@@ -581,9 +615,10 @@ docker buildx imagetools inspect "$IMAGE" --format '{{json .SBOM}}'
 docker buildx imagetools inspect "$IMAGE" --format '{{json .Provenance}}'
 ```
 
-Use the actual upstream digest and build ref. For a main build, use
-`--source-branch main` instead of `--source-tag`. Versioned releases always
-use their Git tag. The generated `VERIFYING.md` selects the right flag for its
+Use the actual upstream digest and Git tag, even when pulling through `latest`
+or `main`: those are container aliases, not the build's Git ref. Older images
+published from main before the tag-only policy use `--source-branch main`
+instead. The generated `VERIFYING.md` selects the right flag for its
 build; `release.json` records the source ref. Check
 the expected commit in `invocation.configSource.digest.sha1` and the expected
 caller `.github/workflows/container.yml` too; the repository name alone does
@@ -638,9 +673,10 @@ frontend comes from the pinned BuildKit image. Node major upgrades are a
 deliberate maintainer decision: keep builder and distroless runtime aligned,
 then update the contract tests. Recheck Node 26's support lifecycle too.
 
-Review update PRs and their checks before merging. Weekly main builds rescan
-the pinned inputs against fresh vulnerability data; they do not silently
-upgrade packages. Newly published images still need an operator-controlled
+Review update PRs and their checks before merging. Weekly main builds check
+the pinned application locally; version-tag builds scan release candidates
+against fresh vulnerability data. Neither silently upgrades packages.
+Newly published images still need an operator-controlled
 deployment. Never delete registry attestations merely to tidy the package list.
 
 Contributors with Node installed can test a locally built image with:

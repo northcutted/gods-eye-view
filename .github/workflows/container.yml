@@ -3,7 +3,7 @@ name: Container build and release
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: ['**']
     tags: ['v*']
   workflow_dispatch:
   schedule:
@@ -12,12 +12,13 @@ on:
 permissions: {}
 
 concurrency:
-  group: container-${{ github.ref }}
+  # Release runs share mutable aliases; do not promote two releases concurrently.
+  group: container-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && 'publish' || github.ref }}
   cancel-in-progress: false
 
 jobs:
-  # Both paths check the app first. PRs and non-release branches only build/test;
-  # eligible main/tag runs stage images, sign build records, then publish tags.
+  # Main, branch, PR, scheduled, and manual runs only build/test locally.
+  # Only version-tag pushes stage images, sign build records, and publish.
   # Keep job IDs stable; the names below are the labels shown in GitHub Actions.
   checks:
     name: Check application (Node.js ${{ matrix.node }})
@@ -63,8 +64,9 @@ jobs:
       created: ${{ steps.meta.outputs.created }}
       version: ${{ steps.meta.outputs.version }}
       publish: ${{ steps.meta.outputs.publish }}
-      release: ${{ steps.meta.outputs.release }}
       tags: ${{ steps.meta.outputs.tags }}
+      branch: ${{ steps.meta.outputs.branch }}
+      branch_commit: ${{ steps.meta.outputs.branch_commit }}
       node: ${{ steps.toolchain.outputs.node }}
       runtime: ${{ steps.toolchain.outputs.runtime }}
       buildkit: ${{ steps.toolchain.outputs.buildkit }}
@@ -119,7 +121,7 @@ jobs:
   build:
     name: Build, test, and scan image (${{ matrix.arch }})
     needs: [checks, prepare]
-    if: needs.prepare.outputs.publish == 'true'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.prepare.outputs.publish == 'true'
     # Public repositories get these standard native runners free of charge.
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -245,7 +247,7 @@ jobs:
   index:
     name: Assemble multi-platform image
     needs: [prepare, build]
-    if: needs.prepare.outputs.publish == 'true'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -302,6 +304,7 @@ jobs:
   provenance:
     name: Sign build provenance (SLSA)
     needs: [prepare, index]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.prepare.outputs.publish == 'true'
     permissions:
       actions: read
       id-token: write
@@ -319,6 +322,7 @@ jobs:
   verify-and-promote:
     name: Verify evidence and publish image tags
     needs: [prepare, index, provenance]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -344,6 +348,8 @@ jobs:
           IMAGE: ${{ needs.prepare.outputs.image }}
           DIGEST: ${{ needs.index.outputs.digest }}
           IMAGE_TAGS: ${{ needs.prepare.outputs.tags }}
+          RELEASE_BRANCH: ${{ needs.prepare.outputs.branch }}
+          RELEASE_BRANCH_COMMIT: ${{ needs.prepare.outputs.branch_commit }}
         run: |
           set -euo pipefail
           mkdir -p evidence
@@ -382,7 +388,7 @@ jobs:
   draft-release:
     name: Create draft GitHub Release (version tags only)
     needs: [prepare, index, verify-and-promote]
-    if: needs.prepare.outputs.release == 'true'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

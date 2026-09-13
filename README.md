@@ -161,7 +161,8 @@ docker compose up -d --no-build app
 Open **http://localhost:8080**. It starts without API keys and keeps its cache
 across container replacement. Direct access stays on the Docker host by default.
 
-`latest` is the easy default and receives verified image updates. Run the same
+`latest` is the easy default and updates only after a verified, stable version-tag
+release—not on every commit to main. Run the same
 two commands to update; an already-running container does not update itself.
 These commands use the upstream image once publishing is enabled there. Until
 then, use the [local build instructions](docs/CONTAINERS.md#build-from-your-checkout).

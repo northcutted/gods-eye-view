@@ -41,25 +41,54 @@ export function releaseVersion(ref) {
 export function publicationPlan(env) {
   const { EVENT, GITHUB_REF: ref, GITHUB_SHA: sha } = env;
   assert.match(sha, shaPattern);
-  const main = ref === `refs/heads/${env.DEFAULT_BRANCH}`;
-  const tagged = ref.startsWith('refs/tags/');
-  let publish = EVENT !== 'pull_request' && main;
-  let version = `sha-${sha}`;
-  const release = ['push', 'workflow_dispatch'].includes(EVENT) && tagged;
-  if (release) {
-    version = releaseVersion(ref);
-    publish = true;
-  }
+  const publish = EVENT === 'push' && ref.startsWith('refs/tags/');
+  const version = publish ? releaseVersion(ref) : `sha-${sha}`;
   const tags = [];
+  let branch = '';
   if (publish) {
-    tags.push(`sha-${sha}`);
-    if (main) tags.push('main');
-    if (version.startsWith('v')) tags.push(version);
-    // latest is the easy default, not a promise of stability. Prerelease builds
-    // keep their explicit version; ordinary default-branch builds do move latest.
-    if (!version.startsWith('v') || !version.includes('-')) tags.push('latest');
+    branch = branchAlias(env.DEFAULT_BRANCH);
+    tags.push(version);
+    if (!version.includes('-')) tags.push('latest');
+    tags.push(branch);
   }
-  return { publish, release, version, tags };
+  return { publish, version, tags, branch };
+}
+
+export function branchAlias(branch) {
+  assert.match(
+    branch,
+    /^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$/,
+    'The release branch must be a valid container tag',
+  );
+  assert.ok(
+    branch !== 'latest' &&
+      !branch.startsWith('build-') &&
+      !branch.startsWith('sha-') &&
+      !versionPattern.test(branch),
+    'The release branch collides with a reserved image tag',
+  );
+  return branch;
+}
+
+export function verifyReleaseBranch(repo, branch, commit, request = api) {
+  branchAlias(branch);
+  assert.match(commit, shaPattern);
+  const ref = request(repo, `git/ref/heads/${encodeURIComponent(branch)}`);
+  assert.equal(ref.ref, `refs/heads/${branch}`);
+  assert.equal(ref.object?.type, 'commit');
+  assert.match(ref.object.sha, shaPattern);
+  const comparison = request(
+    repo,
+    `compare/${commit}...${ref.object.sha}`,
+    '--jq',
+    '{status, merge_base_commit: {sha: .merge_base_commit.sha}}',
+  );
+  assert.ok(
+    ['ahead', 'identical'].includes(comparison.status) &&
+      comparison.merge_base_commit?.sha === commit,
+    `The tagged commit must belong to release branch ${branch}; no images were published`,
+  );
+  return ref.object.sha;
 }
 
 export function imageRecord(env, index) {
@@ -80,16 +109,25 @@ export function imageRecord(env, index) {
     assert.match(matches[0].digest, digestPattern);
     return { platform: `linux/${arch}`, digest: matches[0].digest };
   });
-  const tags = env.IMAGE_TAGS.split(' ');
+  const plan = publicationPlan({
+    ...env,
+    EVENT: env.GITHUB_EVENT_NAME,
+    DEFAULT_BRANCH: env.RELEASE_BRANCH,
+  });
   assert.ok(
-    tags.length > 0 && tags.every((tag) => /^[\w][\w.-]{0,127}$/.test(tag)),
+    plan.publish,
+    'Image evidence is only generated for version-tag pushes',
   );
-  assert.ok(tags.includes(`sha-${env.GITHUB_SHA}`));
+  const tags = env.IMAGE_TAGS.split(' ');
+  assert.deepEqual(
+    tags,
+    plan.tags,
+    'Published tags must match the release plan',
+  );
+  assert.match(env.RELEASE_BRANCH_COMMIT, shaPattern);
   return {
     schemaVersion: 1,
-    version: env.GITHUB_REF.startsWith('refs/tags/')
-      ? releaseVersion(env.GITHUB_REF)
-      : `sha-${env.GITHUB_SHA}`,
+    version: plan.version,
     image: env.IMAGE,
     digest: env.DIGEST,
     reference: `${env.IMAGE}@${env.DIGEST}`,
@@ -98,6 +136,8 @@ export function imageRecord(env, index) {
       repository: env.GITHUB_REPOSITORY,
       commit: env.GITHUB_SHA,
       ref: env.GITHUB_REF,
+      releaseBranch: plan.branch,
+      releaseBranchCommit: env.RELEASE_BRANCH_COMMIT,
     },
     workflow: {
       path: '.github/workflows/container.yml',
@@ -111,12 +151,10 @@ export function containerNotes(record) {
   const { image, reference, tags, source, workflow, platforms } = record;
   const meaning = (tag) =>
     tag === 'latest'
-      ? 'Easy default; moves after verified builds'
-      : tag === 'main'
-        ? 'Default-branch build; moves with updates'
-        : tag.startsWith('sha-')
-          ? 'Built from this Git commit; rebuilding can change the digest'
-          : 'Version tag for this build';
+      ? 'Most recently published stable release'
+      : tag === source.releaseBranch
+        ? `Most recently published release from ${source.releaseBranch}; includes prereleases`
+        : 'Exact Git version tag for this release';
   return `## Published container
 
 \`docker pull ${image}:${tags.includes('latest') ? 'latest' : tags.find((tag) => tag.startsWith('v')) || tags[0]}\`
@@ -134,6 +172,7 @@ digest below to keep running these exact bytes.
 | Image digest (multi-platform index) | \`${record.digest}\` |
 | Git commit SHA (source code, not an image digest) | [\`${source.commit}\`](https://github.com/${source.repository}/commit/${source.commit}) |
 | Build source ref | \`${source.ref}\` |
+| Release branch | \`${source.releaseBranch}\` (contains the tagged commit) |
 | Build and verification | [GitHub Actions run](${workflow.run}) |
 
 \`docker pull ${reference}\`
@@ -173,7 +212,7 @@ docker buildx imagetools inspect ${quote(record.reference)} --format '{{json .Pr
 Confirm the source commit is \`${record.source.commit}\` in
 \`invocation.configSource.digest.sha1\` and the caller is
 \`.github/workflows/container.yml\`. Versioned releases use tag provenance;
-ordinary main builds use branch provenance and do not create GitHub Releases.
+branch, scheduled, and manual builds do not publish images or signed provenance.
 
 \`release.json\` is a convenient index of the image references, not a signed
 attestation. \`SHA256SUMS\` checks downloaded files for corruption; verify the
@@ -258,6 +297,11 @@ export function createDraft(
   env,
   { request = api, execute = gh, directory = '.' } = {},
 ) {
+  assert.equal(
+    env.GITHUB_EVENT_NAME,
+    'push',
+    'GitHub Releases require a version-tag push',
+  );
   const tag = releaseVersion(env.GITHUB_REF);
   const repo = env.GITHUB_REPOSITORY;
   const file = (relative) => path.join(directory, relative);
@@ -360,11 +404,17 @@ export function createDraft(
 function main(command, env) {
   if (command === 'prepare') {
     const plan = publicationPlan(env);
-    if (plan.release) {
+    let branchCommit = '';
+    if (plan.publish) {
       checkTag(env.GITHUB_REPOSITORY, plan.version, env.GITHUB_SHA);
       assert.ok(
         !existingRelease(env.GITHUB_REPOSITORY, plan.version),
         'A release already exists for this version; use a new version or edit the existing release manually',
+      );
+      branchCommit = verifyReleaseBranch(
+        env.GITHUB_REPOSITORY,
+        plan.branch,
+        env.GITHUB_SHA,
       );
     }
     for (const [key, value] of Object.entries({
@@ -372,7 +422,8 @@ function main(command, env) {
       created: new Date().toISOString(),
       version: plan.version,
       publish: plan.publish,
-      release: plan.release,
+      branch: plan.branch,
+      branch_commit: branchCommit,
       tags: plan.tags.join(' '),
     }))
       console.log(`${key}=${value}`);
